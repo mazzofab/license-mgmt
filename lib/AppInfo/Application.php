@@ -16,7 +16,8 @@ class Application extends App implements IBootstrap {
     }
 
     public function register(IRegistrationContext $context): void {
-        $context->registerBackgroundJob(SendReminders::class);
+        // Nextcloud 31 doesn't support registerBackgroundJob in the registration context
+        // We'll register it in the boot method instead
     }
 
     public function boot(IBootContext $context): void {

@@ -125,3 +125,4 @@ class DriverController extends Controller {
     public function search(string $query, ?int $limit = null, ?int $offset = null): DataResponse {
         return new DataResponse($this->service->search($this->userId, $query, $limit, $offset));
     }
+}
