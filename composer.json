@@ -1,0 +1,26 @@
+{
+    "name": "mazzofab/driverlicensemgmt",
+    "description": "Driver License Management app for Nextcloud",
+    "type": "project",
+    "license": "AGPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "Fabrizio Mazzoni",
+            "email": "fabrizio@fsm.co.tz"
+        }
+    ],
+    "require": {
+        "php": ">=8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "nextcloud/coding-standard": "^1.0"
+    },
+    "scripts": {
+        "lint": "find . -name \\*.php -not -path './vendor/*' -print0 | xargs -0 -n1 php -l",
+        "cs:check": "php-cs-fixer fix --dry-run --diff",
+        "cs:fix": "php-cs-fixer fix",
+        "test": "phpunit -c phpunit.xml",
+        "test:coverage": "phpunit -c phpunit.xml --coverage-clover=coverage.xml --coverage-html=coverage"
+    }
+}

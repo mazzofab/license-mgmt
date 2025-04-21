@@ -1,0 +1,88 @@
+# Driver License Management App - Project Summary
+
+## Overview
+
+The Driver License Management app is a Nextcloud application designed to track driver licenses and send automatic expiry reminders. It's built for Nextcloud 31+ and uses PostgreSQL as the database.
+
+## Key Features
+
+- Track drivers with their license information
+- Manage notification recipients
+- Send automated reminders at 30, 7, and 1 day before license expiry
+- User-friendly interface that integrates with Nextcloud's design
+
+## Core Components
+
+### Database Structure
+
+| Table | Purpose |
+|-------|---------|
+| `dlm_drivers` | Stores driver information (name, surname, license number, expiry date, phone) |
+| `dlm_notifications` | Stores notification recipients (email, phone, status) |
+| `dlm_reminders_sent` | Tracks which reminders have been sent to avoid duplicates |
+
+### Key Files and Their Purpose
+
+#### App Configuration
+- `appinfo/info.xml` - App metadata and dependencies
+- `appinfo/routes.php` - API and page routes definition
+- `lib/AppInfo/Application.php` - Main application class and bootstrapping
+
+#### Database Models
+- `lib/Db/Driver.php` - Driver entity model
+- `lib/Db/DriverMapper.php` - Database access for drivers
+- `lib/Db/Notification.php` - Notification recipient entity model
+- `lib/Db/NotificationMapper.php` - Database access for notifications
+- `lib/Db/ReminderSent.php` - Reminder tracking entity model
+- `lib/Db/ReminderSentMapper.php` - Database access for reminder tracking
+- `lib/Migration/Version000000Date.php` - Database schema creation
+
+#### Business Logic
+- `lib/Service/DriverService.php` - Driver management logic
+- `lib/Service/NotificationService.php` - Notification recipient management logic
+- `lib/Service/ReminderService.php` - Email reminder logic
+- `lib/BackgroundJob/SendReminders.php` - Background job for sending reminders
+
+#### Controllers
+- `lib/Controller/PageController.php` - Handles page rendering
+- `lib/Controller/DriverController.php` - API for driver management
+- `lib/Controller/NotificationController.php` - API for notification management
+
+#### Frontend Templates
+- `templates/content/index.php` - Dashboard page
+- `templates/content/drivers.php` - Driver management page
+- `templates/content/notifications.php` - Notification management page
+
+#### JavaScript
+- `js/script.js` - Main initialization script
+- `js/drivers.js` - Driver management UI logic
+- `js/notifications.js` - Notification management UI logic
+
+#### Styling
+- `css/style.css` - App-specific styling
+- `img/app-icon.svg` - App icon
+
+#### Documentation
+- `README.md` - Installation and usage instructions
+
+## Integration with Nextcloud
+
+The app integrates with several Nextcloud components:
+
+1. **Navigation** - App appears in the main navigation menu
+2. **Database** - Uses Nextcloud's database abstraction layer
+3. **Background Jobs** - Leverages Nextcloud's background job system for reminders
+4. **Notifications** - Uses Nextcloud's notification system for user feedback
+5. **Styling** - Follows Nextcloud's design patterns and color scheme
+
+## Workflow
+
+1. Administrators add drivers and their license information
+2. Administrators configure notification recipients
+3. The app automatically sends reminders when licenses are about to expire
+4. Administrators can track, update, and manage all data through the web interface
+
+## Development Information
+
+Repository: https://github.com/mazzofab/license-mgmt.git
+Author: Fabrizio Mazzoni <fabrizio@fsm.co.tz>

@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>driverlicensemgmt</id>
+    <name>Driver License Management</name>
+    <summary>Manage driver licenses and send expiry reminders</summary>
+    <description><![CDATA[
+Driver License Management app for Nextcloud allows you to:
+- Track driver licenses and their expiry dates
+- Manage notification recipients
+- Send automated reminders before license expiry
+]]></description>
+    <version>0.1.0</version>
+    <licence>AGPL</licence>
+    <author mail="fabrizio@fsm.co.tz" homepage="https://github.com/mazzofab">Fabrizio Mazzoni</author>
+    <namespace>DriverLicenseMgmt</namespace>
+    <documentation>
+        <developer>https://github.com/mazzofab/license-mgmt</developer>
+    </documentation>
+    <category>organization</category>
+    <category>tools</category>
+    <website>https://github.com/mazzofab/license-mgmt</website>
+    <bugs>https://github.com/mazzofab/license-mgmt/issues</bugs>
+    <repository type="git">https://github.com/mazzofab/license-mgmt.git</repository>
+    <dependencies>
+        <nextcloud min-version="31" max-version="32"/>
+        <database>pgsql</database>
+    </dependencies>
+    <background-jobs>
+        <job>OCA\DriverLicenseMgmt\BackgroundJob\SendReminders</job>
+    </background-jobs>
+    <navigations>
+        <navigation>
+            <name>Driver License Mgmt</name>
+            <route>driverlicensemgmt.page.index</route>
+            <icon>app.svg</icon>
+            <order>10</order>
+        </navigation>
+    </navigations>
+</info>
