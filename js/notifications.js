@@ -108,6 +108,21 @@ document.addEventListener('DOMContentLoaded', function() {
         notificationsList.innerHTML = '';
         
         notifications.forEach(notification => {
+            // Get creation and update timestamps in local format
+            let createdDate = '';
+            let updatedDate = '';
+            
+            try {
+                if (notification.createdAt) {
+                    createdDate = formatDate(new Date(notification.createdAt));
+                }
+                if (notification.updatedAt) {
+                    updatedDate = formatDate(new Date(notification.updatedAt));
+                }
+            } catch (e) {
+                console.error('Error formatting dates:', e);
+            }
+            
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${escapeHTML(notification.email)}</td>
@@ -289,11 +304,36 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     /**
+     * Format date for display using local system format
+     * @param {Date|string} date - Date object or string
+     * @returns {string} Formatted date string in local format
+     */
+    function formatDate(date) {
+        if (!(date instanceof Date)) {
+            date = new Date(date);
+        }
+        
+        if (isNaN(date.getTime())) {
+            return t('driverlicensemgmt', 'Invalid Date');
+        }
+        
+        // Use the browser's built-in Intl.DateTimeFormat for localized date format
+        return new Intl.DateTimeFormat(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        }).format(date);
+    }
+    
+    /**
      * Escape HTML to prevent XSS
      * @param {string} text - Text to escape
      * @returns {string} Escaped text
      */
     function escapeHTML(text) {
+        if (text === null || text === undefined) {
+            return '';
+        }
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;

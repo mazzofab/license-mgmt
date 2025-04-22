@@ -476,9 +476,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     /**
-     * Format date for display
+     * Format date for display using local system format
      * @param {Date|string} date - Date object or string
-     * @returns {string} Formatted date string
+     * @returns {string} Formatted date string in local format
      */
     function formatDate(date) {
         if (!(date instanceof Date)) {
@@ -489,13 +489,18 @@ document.addEventListener('DOMContentLoaded', function() {
             return t('driverlicensemgmt', 'Invalid Date');
         }
         
-        return date.toLocaleDateString();
+        // Use the browser's built-in Intl.DateTimeFormat for localized date format
+        return new Intl.DateTimeFormat(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        }).format(date);
     }
     
     /**
      * Format date for input field
      * @param {Date|string} date - Date object or string
-     * @returns {string} Date string in YYYY-MM-DD format
+     * @returns {string} Date string in YYYY-MM-DD format (required for date inputs)
      */
     function formatDateForInput(date) {
         if (!(date instanceof Date)) {

@@ -5,6 +5,7 @@ use OCA\DriverLicenseMgmt\Db\DriverMapper;
 use OCA\DriverLicenseMgmt\AppInfo\Application;
 use OCP\IURLGenerator;
 use OCP\L10N\IFactory;
+use OCP\IDateTimeFormatter;
 use OCP\Notification\INotification;
 use OCP\Notification\INotifier;
 
@@ -17,20 +18,26 @@ class NotificationProvider implements INotifier {
 
     /** @var DriverMapper */
     private $driverMapper;
+    
+    /** @var IDateTimeFormatter */
+    private $dateFormatter;
 
     /**
      * @param IFactory $l10nFactory
      * @param IURLGenerator $urlGenerator
      * @param DriverMapper $driverMapper
+     * @param IDateTimeFormatter $dateFormatter
      */
     public function __construct(
         IFactory $l10nFactory,
         IURLGenerator $urlGenerator,
-        DriverMapper $driverMapper
+        DriverMapper $driverMapper,
+        IDateTimeFormatter $dateFormatter
     ) {
         $this->l10nFactory = $l10nFactory;
         $this->urlGenerator = $urlGenerator;
         $this->driverMapper = $driverMapper;
+        $this->dateFormatter = $dateFormatter;
     }
 
     /**
@@ -73,17 +80,32 @@ class NotificationProvider implements INotifier {
             $driverName = $params['name'] ?? '';
             $daysRemaining = $params['days'] ?? 0;
             $expiryDate = $params['expiry_date'] ?? '';
+            
+            // Format the date using locale-aware formatter
+            $formattedDate = '';
+            try {
+                if (!empty($expiryDate)) {
+                    $dateObj = \DateTime::createFromFormat('Y-m-d', $expiryDate);
+                    if ($dateObj) {
+                        $formattedDate = $this->dateFormatter->formatDate($dateObj, 'medium');
+                    } else {
+                        $formattedDate = $expiryDate; // Fallback if parsing fails
+                    }
+                }
+            } catch (\Exception $e) {
+                $formattedDate = $expiryDate; // Fallback to original value
+            }
 
             // Set the title and message based on days remaining
             if ($daysRemaining === 0) {
                 $subject = $l->t('License Expiring Today: %s', [$driverName]);
-                $message = $l->t('The driver license for %1$s expires today (%2$s).', [$driverName, $expiryDate]);
+                $message = $l->t('The driver license for %1$s expires today (%2$s).', [$driverName, $formattedDate]);
             } else if ($daysRemaining === 1) {
                 $subject = $l->t('License Expiring Tomorrow: %s', [$driverName]);
-                $message = $l->t('The driver license for %1$s expires tomorrow (%2$s).', [$driverName, $expiryDate]);
+                $message = $l->t('The driver license for %1$s expires tomorrow (%2$s).', [$driverName, $formattedDate]);
             } else {
                 $subject = $l->t('License Expiring Soon: %s', [$driverName]);
-                $message = $l->t('The driver license for %1$s expires in %2$s days (%3$s).', [$driverName, $daysRemaining, $expiryDate]);
+                $message = $l->t('The driver license for %1$s expires in %2$s days (%3$s).', [$driverName, $daysRemaining, $formattedDate]);
             }
 
             // Create link to the drivers page

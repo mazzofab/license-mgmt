@@ -7,6 +7,7 @@ use OCA\DriverLicenseMgmt\Db\NotificationMapper;
 use OCA\DriverLicenseMgmt\Db\ReminderSentMapper;
 use OCA\DriverLicenseMgmt\Notification\NotificationManager;
 use OCP\IL10N;
+use OCP\IDateTimeFormatter;
 use OCP\Mail\IMailer;
 use Psr\Log\LoggerInterface;
 
@@ -18,6 +19,7 @@ class ReminderService {
     private IMailer $mailer;
     private LoggerInterface $logger;
     private IL10N $l;
+    private IDateTimeFormatter $dateFormatter;
 
     public function __construct(
         DriverMapper $driverMapper,
@@ -26,7 +28,8 @@ class ReminderService {
         NotificationManager $notificationManager,
         IMailer $mailer,
         LoggerInterface $logger,
-        IL10N $l
+        IL10N $l,
+        IDateTimeFormatter $dateFormatter
     ) {
         $this->driverMapper = $driverMapper;
         $this->notificationMapper = $notificationMapper;
@@ -35,6 +38,7 @@ class ReminderService {
         $this->mailer = $mailer;
         $this->logger = $logger;
         $this->l = $l;
+        $this->dateFormatter = $dateFormatter;
     }
 
     /**
@@ -148,6 +152,9 @@ class ReminderService {
     private function createEmailTemplate($driver, int $daysRemaining): string {
         $fullName = $driver->getName() . ' ' . $driver->getSurname();
         
+        // Format the expiry date using the locale-aware date formatter
+        $formattedExpiryDate = $this->dateFormatter->formatDate($driver->getExpiryDate(), 'long');
+        
         $template = '<h3>' . $this->l->t('Driver License Expiry Notification') . '</h3>';
         $template .= '<p>' . $this->l->t('This is an automated reminder that the following driver license will expire soon:') . '</p>';
         $template .= '<table style="border-collapse: collapse; width: 100%; margin-bottom: 20px;">';
@@ -158,7 +165,7 @@ class ReminderService {
         $template .= '<td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($driver->getLicenseNumber()) . '</td></tr>';
         
         $template .= '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>' . $this->l->t('Expiry Date') . ':</strong></td>';
-        $template .= '<td style="padding: 8px; border: 1px solid #ddd;">' . $driver->getExpiryDate()->format('Y-m-d') . '</td></tr>';
+        $template .= '<td style="padding: 8px; border: 1px solid #ddd;">' . $formattedExpiryDate . '</td></tr>';
         
         $template .= '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>' . $this->l->t('Phone Number') . ':</strong></td>';
         $template .= '<td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($driver->getPhoneNumber()) . '</td></tr>';
