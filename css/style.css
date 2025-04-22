@@ -37,11 +37,18 @@
     padding: 15px;
 }
 
+/* Button container with spacing */
+.button-container {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
 .information-section {
     background-color: var(--color-main-background);
     border-radius: 5px;
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
     padding: 15px;
+    margin-top: 30px;
 }
 
 .information-section h3 {

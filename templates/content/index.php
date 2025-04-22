@@ -19,9 +19,11 @@ style('driverlicensemgmt', 'style');
                             </div>
                             <div class="panel-body">
                                 <p><?php p($l->t('Add and manage driver details along with their license information.')); ?></p>
-                                <a href="<?php p(\OC::$server->getURLGenerator()->linkToRoute('driverlicensemgmt.page.drivers')); ?>" class="button primary">
-                                    <?php p($l->t('Manage Drivers')); ?>
-                                </a>
+                                <div class="button-container">
+                                    <a href="<?php p(\OC::$server->getURLGenerator()->linkToRoute('driverlicensemgmt.page.drivers')); ?>" class="button primary">
+                                        <?php p($l->t('Manage Drivers')); ?>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                         
@@ -31,9 +33,11 @@ style('driverlicensemgmt', 'style');
                             </div>
                             <div class="panel-body">
                                 <p><?php p($l->t('Add and manage email addresses and phone numbers to receive license expiry notifications.')); ?></p>
-                                <a href="<?php p(\OC::$server->getURLGenerator()->linkToRoute('driverlicensemgmt.page.notifications')); ?>" class="button primary">
-                                    <?php p($l->t('Manage Notifications')); ?>
-                                </a>
+                                <div class="button-container">
+                                    <a href="<?php p(\OC::$server->getURLGenerator()->linkToRoute('driverlicensemgmt.page.notifications')); ?>" class="button primary">
+                                        <?php p($l->t('Manage Notifications')); ?>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
