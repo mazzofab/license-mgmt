@@ -70,7 +70,8 @@ class NotificationMapper extends QBMapper {
      */
     public function emailExists(string $email, string $userId, ?int $excludeId = null): bool {
         $qb = $this->db->getQueryBuilder();
-        $qb->select('COUNT(*)')
+        // Use count() function instead of 'COUNT(*)' string
+        $qb->select($qb->func()->count('*', 'count'))
             ->from($this->getTableName())
             ->where($qb->expr()->eq('email', $qb->createNamedParameter($email)))
             ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
@@ -80,7 +81,7 @@ class NotificationMapper extends QBMapper {
         }
 
         $result = $qb->executeQuery();
-        $count = (int)$result->fetchOne();
+        $count = (int)$result->fetchColumn();
         $result->closeCursor();
 
         return $count > 0;
