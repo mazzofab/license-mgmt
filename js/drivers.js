@@ -99,37 +99,71 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadDrivers() {
         driversList.innerHTML = '<tr class="empty-row"><td colspan="6">' + t('driverlicensemgmt', 'Loading drivers...') + '</td></tr>';
         
-        // Determine the URL based on whether we're searching or not
         let url;
-        const params = {
-            limit: driversPerPage,
-            offset: (currentPage - 1) * driversPerPage
-        };
+        const params = {};
         
-        // If searching, add query parameter
+        // Build the proper URL and parameters
         if (currentSearchQuery && currentSearchQuery.trim() !== '') {
-            url = OC.generateUrl('/api/drivers/search');
+            // Search mode
+            url = OC.generateUrl('/apps/driverlicensemgmt/api/drivers/search');
             params.query = currentSearchQuery;
         } else {
-            url = OC.generateUrl('/api/drivers');
+            // Regular listing mode
+            url = OC.generateUrl('/apps/driverlicensemgmt/api/drivers');
         }
         
-        console.log('Loading drivers from:', url, 'with params:', params);
+        // Add pagination params
+        params.limit = driversPerPage;
+        params.offset = (currentPage - 1) * driversPerPage;
         
-        fetch(url + '?' + new URLSearchParams(params), {
+        // Build the query string
+        const queryString = Object.keys(params)
+            .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(params[key]))
+            .join('&');
+        
+        const fullUrl = url + (queryString ? '?' + queryString : '');
+        console.log('Loading drivers from:', fullUrl);
+        
+        fetch(fullUrl, {
             method: 'GET',
             headers: {
+                'Accept': 'application/json',
                 'Content-Type': 'application/json',
                 'requesttoken': OC.requestToken
             }
         })
         .then(response => {
+            // Check if response is OK
             if (!response.ok) {
-                return response.json().then(err => {
-                    throw new Error(err.message || 'Network response was not ok');
+                // Try to parse as JSON first
+                return response.text().then(text => {
+                    try {
+                        // Try to parse as JSON
+                        const jsonError = JSON.parse(text);
+                        throw new Error(jsonError.message || 'Network response was not ok');
+                    } catch (e) {
+                        // If not valid JSON, it might be HTML error page
+                        if (text.includes('<!DOCTYPE html>') || text.startsWith('<')) {
+                            throw new Error('Server returned HTML instead of JSON. There might be a server error.');
+                        } else {
+                            throw new Error('Network response was not ok: ' + text);
+                        }
+                    }
                 });
             }
-            return response.json();
+            
+            // Process successful response
+            return response.text().then(text => {
+                try {
+                    // Try to parse as JSON
+                    return JSON.parse(text);
+                } catch (e) {
+                    // If not valid JSON
+                    console.error('Error parsing JSON:', e);
+                    console.error('Raw response:', text);
+                    throw new Error('Invalid JSON response from server');
+                }
+            });
         })
         .then(data => {
             console.log('Received data:', data);
@@ -333,19 +367,27 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const url = OC.generateUrl(`/api/test/notification/${driverId}/7`);
+        const url = OC.generateUrl(`/apps/driverlicensemgmt/api/test/notification/${driverId}/7`);
         
         fetch(url, {
             method: 'GET',
             headers: {
+                'Accept': 'application/json',
                 'Content-Type': 'application/json',
                 'requesttoken': OC.requestToken
             }
         })
         .then(response => {
             if (!response.ok) {
-                return response.json().then(err => {
-                    throw new Error(err.message || 'Error sending test notification');
+                return response.text().then(text => {
+                    try {
+                        // Try to parse as JSON
+                        const jsonError = JSON.parse(text);
+                        throw new Error(jsonError.message || 'Error sending test notification');
+                    } catch (e) {
+                        // If not valid JSON
+                        throw new Error('Error sending test notification');
+                    }
                 });
             }
             return response.json();
@@ -496,7 +538,7 @@ document.addEventListener('DOMContentLoaded', function() {
             phoneNumber: document.getElementById('phone_number').value
         };
         
-        let url = OC.generateUrl('/api/drivers');
+        let url = OC.generateUrl('/apps/driverlicensemgmt/api/drivers');
         let method = 'POST';
         
         if (isEditMode) {
@@ -517,6 +559,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(url, {
             method: method,
             headers: {
+                'Accept': 'application/json',
                 'Content-Type': 'application/json',
                 'requesttoken': OC.requestToken
             },
@@ -524,8 +567,15 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                return response.json().then(err => {
-                    throw new Error(err.message || 'Error saving driver');
+                return response.text().then(text => {
+                    try {
+                        // Try to parse as JSON
+                        const jsonError = JSON.parse(text);
+                        throw new Error(jsonError.message || 'Error saving driver');
+                    } catch (e) {
+                        // If not valid JSON
+                        throw new Error('Error saving driver: Server returned an invalid response');
+                    }
                 });
             }
             return response.json();
@@ -571,21 +621,29 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const url = OC.generateUrl(`/api/drivers/${driverId}`);
+        const url = OC.generateUrl(`/apps/driverlicensemgmt/api/drivers/${driverId}`);
         
         console.log('Deleting driver:', driverId, 'using URL:', url);
         
         fetch(url, {
             method: 'DELETE',
             headers: {
+                'Accept': 'application/json',
                 'Content-Type': 'application/json',
                 'requesttoken': OC.requestToken
             }
         })
         .then(response => {
             if (!response.ok) {
-                return response.json().then(err => {
-                    throw new Error(err.message || 'Error deleting driver');
+                return response.text().then(text => {
+                    try {
+                        // Try to parse as JSON
+                        const jsonError = JSON.parse(text);
+                        throw new Error(jsonError.message || 'Error deleting driver');
+                    } catch (e) {
+                        // If not valid JSON
+                        throw new Error('Error deleting driver: Server returned an invalid response');
+                    }
                 });
             }
             return response.json();
