@@ -1,0 +1,67 @@
+# Nextcloud Notification Feature for Driver License Management
+
+## Overview
+
+I've added Nextcloud bell notifications for license expiry alerts. This feature sends notifications directly to the Nextcloud UI when a driver's license is about to expire, in addition to the existing email notifications.
+
+## Components Added
+
+1. **Notification Manager** (`lib/Notification/NotificationManager.php`)
+   - Responsible for creating and sending Nextcloud notifications
+   - Provides methods to send expiry notifications and mark them as processed
+
+2. **Notification Provider** (`lib/Notification/NotificationProvider.php`)
+   - Formats notifications for display in the Nextcloud UI
+   - Defines notification titles, messages, and links
+
+3. **Updated ReminderService** (`lib/Service/ReminderService.php`)
+   - Now sends both email and Nextcloud notifications
+   - Tracks notification success/failure
+
+4. **Test Controller and Route** (`lib/Controller/TestController.php`)
+   - Provides an API endpoint to manually trigger notifications for testing
+   - Accessible via a new button in the drivers list
+
+5. **Updated Application Class** (`lib/AppInfo/Application.php`)
+   - Registers the notification provider with Nextcloud
+
+6. **Test Script** (`test-notification.php`)
+   - Command-line script for testing notifications
+
+## How It Works
+
+1. **Automatic Notifications**:
+   - The background job checks for licenses expiring in 30, 7, or 1 days
+   - Sends Nextcloud notifications to the driver's user account
+   - Still sends email notifications to configured recipients
+
+2. **Notification Display**:
+   - Notifications appear in the Nextcloud bell icon
+   - Each notification includes:
+     - Driver name and license number
+     - Days remaining until expiry
+     - Link to the drivers page
+
+3. **Manual Testing**:
+   - Use the "Test Notification" button (bell icon) next to each driver in the list
+   - Run the test script from command line: `php test-notification.php <driver_id> <days_before>`
+
+## Implementation Details
+
+- Uses Nextcloud's built-in notification system via `IManager` and `INotifier`
+- Notifications are user-specific (sent to the user who owns the driver record)
+- Provides different messages based on how soon the license expires
+
+## Testing
+
+1. **UI Test**:
+   - Click the bell icon button next to any driver in the list
+   - Check the Nextcloud notification bell in the top bar
+
+2. **Command-line Test**:
+   - Run `php /path/to/nextcloud/apps/driverlicensemgmt/test-notification.php 1 7`
+   - Replace "1" with the driver ID and "7" with days before expiry
+
+3. **Cron Job Test**:
+   - Run `sudo -u www-data php /path/to/nextcloud/occ background:execute`
+   - This will process all pending background jobs, including license notifications

@@ -65,15 +65,36 @@ document.addEventListener('DOMContentLoaded', function() {
             loadMoreDrivers();
         });
         
-        // Search input
+        // Search input - debounced search with slight delay
+        let searchTimeout = null;
         searchInput.addEventListener('input', function() {
             const query = this.value.trim();
-            if (query !== currentSearchQuery) {
-                currentSearchQuery = query;
+            
+            // Clear previous timeout
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            
+            // Set a new timeout to prevent too many requests while typing
+            searchTimeout = setTimeout(function() {
+                if (query !== currentSearchQuery) {
+                    currentSearchQuery = query;
+                    currentPage = 1;
+                    loadDrivers();
+                }
+            }, 300); // 300ms delay
+        });
+        
+        // Clear search button (if present)
+        const clearSearchButton = document.getElementById('clear-search');
+        if (clearSearchButton) {
+            clearSearchButton.addEventListener('click', function() {
+                searchInput.value = '';
+                currentSearchQuery = '';
                 currentPage = 1;
                 loadDrivers();
-            }
-        });
+            });
+        }
         
         // Close modals when clicking outside
         window.addEventListener('click', function(event) {
@@ -109,7 +130,9 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                return response.json().then(err => {
+                    throw new Error(err.message || 'Network response was not ok');
+                });
             }
             return response.json();
         })
@@ -118,11 +141,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 drivers = [];
             }
             
-            if (currentSearchQuery) {
-                drivers = data;
-            } else {
-                drivers = drivers.concat(data.data);
+            if (Array.isArray(data)) {
+                // Search results or array response
+                drivers = currentPage === 1 ? data : drivers.concat(data);
+                isLastPage = data.length < driversPerPage;
+            } else if (data.data && Array.isArray(data.data)) {
+                // Standard paginated response
+                drivers = currentPage === 1 ? data.data : drivers.concat(data.data);
                 isLastPage = data.data.length < driversPerPage || (data.total && drivers.length >= data.total);
+            } else {
+                // Unknown format
+                console.error('Unexpected data format:', data);
+                throw new Error('Unexpected data format from server');
             }
             
             renderDrivers();
@@ -132,6 +162,12 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error fetching drivers:', error);
             driversList.innerHTML = '<tr class="empty-row"><td colspan="6">' + 
                 t('driverlicensemgmt', 'Error loading drivers. Please try again.') + '</td></tr>';
+            
+            // Show notification
+            OC.Notification.showTemporary(t('driverlicensemgmt', 'Error loading drivers: ') + error.message);
+            
+            // Hide load more button on error
+            loadMoreButton.style.display = 'none';
         });
     }
     
@@ -150,8 +186,11 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function renderDrivers() {
         if (drivers.length === 0) {
-            driversList.innerHTML = '<tr class="empty-row"><td colspan="6">' + 
-                t('driverlicensemgmt', 'No drivers found. Add your first driver using the + button above.') + '</td></tr>';
+            let message = currentSearchQuery 
+                ? t('driverlicensemgmt', 'No drivers found matching your search criteria.')
+                : t('driverlicensemgmt', 'No drivers found. Add your first driver using the + button above.');
+                
+            driversList.innerHTML = '<tr class="empty-row"><td colspan="6">' + message + '</td></tr>';
             return;
         }
         

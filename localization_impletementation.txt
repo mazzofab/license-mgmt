@@ -1,0 +1,58 @@
+# Localized Date Formatting Implementation
+
+I've updated the Driver License Management app to display all dates in the user's local format throughout the application. This makes the app more user-friendly and aligned with regional preferences.
+
+## Changes Made
+
+### Frontend (JavaScript)
+
+1. **drivers.js**:
+   - Updated the `formatDate()` function to use `Intl.DateTimeFormat` API
+   - This displays dates according to the user's browser locale settings
+   - Example format: "Jan 15, 2025" (for US) or "15 Jan 2025" (for UK)
+   - Form inputs still use ISO format (YYYY-MM-DD) as required by HTML date inputs
+
+2. **notifications.js**:
+   - Updated to also use the `Intl.DateTimeFormat` API for consistent display
+   - Applied to creation/update timestamps
+
+### Backend (PHP)
+
+1. **ReminderService.php**:
+   - Added `IDateTimeFormatter` service for locale-aware date formatting
+   - Uses Nextcloud's built-in date formatter for emails
+   - Ensures email notifications show dates in the recipient's preferred format
+
+2. **NotificationProvider.php**:
+   - Added locale-aware formatting for dates in notification bell messages
+   - Uses the same `IDateTimeFormatter` as the email service
+   - Formats dates according to the user's Nextcloud language preference
+
+## Benefits
+
+1. **Improved User Experience**:
+   - Users see dates in their familiar format (MM/DD/YYYY vs DD/MM/YYYY, etc.)
+   - No need to mentally convert date formats
+   - Reduces confusion in international environments
+
+2. **Consistency**:
+   - The same date format is used throughout the application
+   - Matches the format used in other parts of Nextcloud
+
+3. **Accessibility**:
+   - Respects user preferences and regional standards
+   - Follows internationalization best practices
+
+## Technical Implementation
+
+### Browser-side:
+- Uses JavaScript's `Intl.DateTimeFormat()` with the `undefined` locale parameter
+- This makes the browser use the user's system locale automatically
+- Format options include: `{year: 'numeric', month: 'short', day: 'numeric'}`
+
+### Server-side:
+- Leverages Nextcloud's `IDateTimeFormatter` service
+- Formats change based on user's Nextcloud language/locale settings
+- Uses 'medium' format for notifications and 'long' format for emails
+
+All date display code now respects the user's locale preferences while maintaining proper date storage in ISO format in the database.

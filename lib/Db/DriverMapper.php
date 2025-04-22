@@ -84,7 +84,7 @@ class DriverMapper extends QBMapper {
      */
     public function count(string $userId): int {
         $qb = $this->db->getQueryBuilder();
-        $qb->select($qb->func()->count('*'))
+        $qb->select($qb->func()->count('*', 'count'))
             ->from($this->getTableName())
             ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
@@ -96,7 +96,7 @@ class DriverMapper extends QBMapper {
     }
 
     /**
-     * Search drivers by name, surname or license number
+     * Search drivers by name, surname, license number or phone number
      * 
      * @param string $userId
      * @param string $query
@@ -105,6 +105,10 @@ class DriverMapper extends QBMapper {
      * @return Entity[] drivers
      */
     public function search(string $userId, string $query, int $limit = null, int $offset = null): array {
+        if (empty($query) || trim($query) === '') {
+            return $this->findAll($userId, $limit, $offset);
+        }
+        
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
             ->from($this->getTableName())
@@ -113,7 +117,8 @@ class DriverMapper extends QBMapper {
                 $qb->expr()->orX(
                     $qb->expr()->iLike('name', $qb->createNamedParameter('%' . $this->db->escapeLikeParameter($query) . '%')),
                     $qb->expr()->iLike('surname', $qb->createNamedParameter('%' . $this->db->escapeLikeParameter($query) . '%')),
-                    $qb->expr()->iLike('license_number', $qb->createNamedParameter('%' . $this->db->escapeLikeParameter($query) . '%'))
+                    $qb->expr()->iLike('license_number', $qb->createNamedParameter('%' . $this->db->escapeLikeParameter($query) . '%')),
+                    $qb->expr()->iLike('phone_number', $qb->createNamedParameter('%' . $this->db->escapeLikeParameter($query) . '%'))
                 )
             )
             ->orderBy('surname', 'ASC')
@@ -126,6 +131,13 @@ class DriverMapper extends QBMapper {
             $qb->setFirstResult($offset);
         }
 
-        return $this->findEntities($qb);
+        try {
+            return $this->findEntities($qb);
+        } catch (\Exception $e) {
+            // Log the error
+            \OC::$server->getLogger()->error('Error searching drivers: ' . $e->getMessage(), ['app' => 'driverlicensemgmt']);
+            // Return empty array on error
+            return [];
+        }
     }
 }

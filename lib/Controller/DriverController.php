@@ -123,6 +123,11 @@ class DriverController extends Controller {
      * @return DataResponse
      */
     public function search(string $query, ?int $limit = null, ?int $offset = null): DataResponse {
-        return new DataResponse($this->service->search($this->userId, $query, $limit, $offset));
+        try {
+            $results = $this->service->search($this->userId, $query, $limit, $offset);
+            return new DataResponse($results);
+        } catch (Exception $e) {
+            return new DataResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        }
     }
 }
