@@ -159,14 +159,52 @@ document.addEventListener('DOMContentLoaded', function() {
         const now = new Date();
         
         drivers.forEach(driver => {
-            const expiryDate = new Date(driver.expiryDate);
-            const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
-            
+            // Improved date handling - handle various date formats
+            let expiryDateObj;
+            let expiryDisplay = '';
             let expiryClass = 'expiry-ok';
-            if (daysUntilExpiry <= 0) {
+            let daysUntilExpiry = 0;
+            
+            // Try parsing the date in different formats
+            try {
+                if (typeof driver.expiryDate === 'string') {
+                    // Try ISO format first (YYYY-MM-DD)
+                    if (driver.expiryDate.includes('T')) {
+                        // Handle full ISO datetime
+                        expiryDateObj = new Date(driver.expiryDate);
+                    } else {
+                        // Handle date-only format
+                        const parts = driver.expiryDate.split('-');
+                        if (parts.length === 3) {
+                            // YYYY-MM-DD format
+                            expiryDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                        }
+                    }
+                } else if (driver.expiryDate && driver.expiryDate.date) {
+                    // Handle PHP DateTime object converted to JSON
+                    expiryDateObj = new Date(driver.expiryDate.date);
+                }
+                
+                if (expiryDateObj && !isNaN(expiryDateObj.getTime())) {
+                    // Date is valid
+                    expiryDisplay = formatDate(expiryDateObj);
+                    daysUntilExpiry = Math.ceil((expiryDateObj - now) / (1000 * 60 * 60 * 24));
+                    
+                    if (daysUntilExpiry <= 0) {
+                        expiryClass = 'expiry-expired';
+                    } else if (daysUntilExpiry <= 30) {
+                        expiryClass = 'expiry-warning';
+                    }
+                } else {
+                    // Date is invalid
+                    expiryDisplay = t('driverlicensemgmt', 'Invalid Date');
+                    expiryClass = 'expiry-expired';
+                }
+            } catch (e) {
+                // Error parsing date
+                console.error('Error parsing date:', e, driver.expiryDate);
+                expiryDisplay = t('driverlicensemgmt', 'Invalid Date');
                 expiryClass = 'expiry-expired';
-            } else if (daysUntilExpiry <= 30) {
-                expiryClass = 'expiry-warning';
             }
             
             const row = document.createElement('tr');
@@ -175,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>${escapeHTML(driver.surname)}</td>
                 <td>${escapeHTML(driver.licenseNumber)}</td>
                 <td>
-                    <span class="expiry-status ${expiryClass}">${formatDate(driver.expiryDate)}</span>
+                    <span class="expiry-status ${expiryClass}">${expiryDisplay}</span>
                 </td>
                 <td>${escapeHTML(driver.phoneNumber)}</td>
                 <td class="actions">
@@ -238,7 +276,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('name').value = driver.name;
                 document.getElementById('surname').value = driver.surname;
                 document.getElementById('license_number').value = driver.licenseNumber;
-                document.getElementById('expiry_date').value = formatDateForInput(driver.expiryDate);
+                
+                // Handle different date formats for editing
+                let expiryDateStr = '';
+                try {
+                    let expiryDateObj;
+                    if (typeof driver.expiryDate === 'string') {
+                        if (driver.expiryDate.includes('T')) {
+                            expiryDateObj = new Date(driver.expiryDate);
+                        } else {
+                            const parts = driver.expiryDate.split('-');
+                            if (parts.length === 3) {
+                                expiryDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                            }
+                        }
+                    } else if (driver.expiryDate && driver.expiryDate.date) {
+                        expiryDateObj = new Date(driver.expiryDate.date);
+                    }
+                    
+                    if (expiryDateObj && !isNaN(expiryDateObj.getTime())) {
+                        expiryDateStr = formatDateForInput(expiryDateObj);
+                    }
+                } catch (e) {
+                    console.error('Error formatting date for input:', e);
+                }
+                
+                document.getElementById('expiry_date').value = expiryDateStr;
                 document.getElementById('phone_number').value = driver.phoneNumber;
             }
         } else {
@@ -371,22 +434,41 @@ document.addEventListener('DOMContentLoaded', function() {
     
     /**
      * Format date for display
-     * @param {string} dateString - Date string from API
+     * @param {Date|string} date - Date object or string
      * @returns {string} Formatted date string
      */
-    function formatDate(dateString) {
-        const date = new Date(dateString);
+    function formatDate(date) {
+        if (!(date instanceof Date)) {
+            date = new Date(date);
+        }
+        
+        if (isNaN(date.getTime())) {
+            return t('driverlicensemgmt', 'Invalid Date');
+        }
+        
         return date.toLocaleDateString();
     }
     
     /**
      * Format date for input field
-     * @param {string|Date} date - Date string or Date object
+     * @param {Date|string} date - Date object or string
      * @returns {string} Date string in YYYY-MM-DD format
      */
     function formatDateForInput(date) {
-        const d = new Date(date);
-        return d.toISOString().split('T')[0];
+        if (!(date instanceof Date)) {
+            date = new Date(date);
+        }
+        
+        if (isNaN(date.getTime())) {
+            return '';
+        }
+        
+        const year = date.getFullYear();
+        // Add leading zero if month or day is less than 10
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        
+        return `${year}-${month}-${day}`;
     }
     
     /**
@@ -395,6 +477,9 @@ document.addEventListener('DOMContentLoaded', function() {
      * @returns {string} Escaped text
      */
     function escapeHTML(text) {
+        if (text === null || text === undefined) {
+            return '';
+        }
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;

@@ -89,12 +89,27 @@ class DriverService {
             $driver->setSurname($surname);
             $driver->setLicenseNumber($licenseNumber);
             
-            // Parse and set expiry date
-            $expiry = \DateTime::createFromFormat('Y-m-d', $expiryDate);
-            if ($expiry === false) {
-                throw new Exception('Invalid expiry date format. Use YYYY-MM-DD.');
+            // Improved date parsing
+            if (empty($expiryDate)) {
+                throw new Exception('Expiry date is required');
             }
-            $driver->setExpiryDate($expiry);
+            
+            // Parse and set expiry date - handle different formats
+            try {
+                $expiry = \DateTime::createFromFormat('Y-m-d', $expiryDate);
+                if ($expiry === false) {
+                    // Try other common formats
+                    $expiry = new \DateTime($expiryDate);
+                }
+                
+                if ($expiry === false || $expiry->format('Y-m-d') === '1970-01-01') {
+                    throw new Exception('Invalid date format');
+                }
+                
+                $driver->setExpiryDate($expiry);
+            } catch (\Exception $e) {
+                throw new Exception('Invalid expiry date format. Use YYYY-MM-DD. Error: ' . $e->getMessage());
+            }
             
             $driver->setPhoneNumber($phoneNumber);
             $driver->setUserId($userId);
@@ -130,12 +145,27 @@ class DriverService {
             $driver->setSurname($surname);
             $driver->setLicenseNumber($licenseNumber);
             
-            // Parse and set expiry date
-            $expiry = \DateTime::createFromFormat('Y-m-d', $expiryDate);
-            if ($expiry === false) {
-                throw new Exception('Invalid expiry date format. Use YYYY-MM-DD.');
+            // Improved date parsing
+            if (empty($expiryDate)) {
+                throw new Exception('Expiry date is required');
             }
-            $driver->setExpiryDate($expiry);
+            
+            // Parse and set expiry date - handle different formats
+            try {
+                $expiry = \DateTime::createFromFormat('Y-m-d', $expiryDate);
+                if ($expiry === false) {
+                    // Try other common formats
+                    $expiry = new \DateTime($expiryDate);
+                }
+                
+                if ($expiry === false || $expiry->format('Y-m-d') === '1970-01-01') {
+                    throw new Exception('Invalid date format');
+                }
+                
+                $driver->setExpiryDate($expiry);
+            } catch (\Exception $e) {
+                throw new Exception('Invalid expiry date format. Use YYYY-MM-DD. Error: ' . $e->getMessage());
+            }
             
             $driver->setPhoneNumber($phoneNumber);
             $driver->setUpdatedAt(new \DateTime());
