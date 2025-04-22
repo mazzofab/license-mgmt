@@ -325,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </button>
                         <button class="test-notification-button" data-id="${driver.id}" 
                                 title="${t('driverlicensemgmt', 'Test Notification')}">
-                            <span class="icon-notifications"></span>
+                            <span class="icon-bell"></span>
                         </button>
                     </div>
                 </td>
