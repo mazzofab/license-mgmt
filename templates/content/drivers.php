@@ -29,7 +29,16 @@ style('driverlicensemgmt', 'style');
                 
                 <div class="drivers-container">
                     <div class="filters">
-                        <input type="text" id="driver-search" class="search-input" placeholder="<?php p($l->t('Search drivers...')); ?>">
+                        <div class="search-container">
+                            <input type="text" id="driver-search" class="search-input" placeholder="<?php p($l->t('Search drivers...')); ?>">
+                            <button id="search-button" class="primary">
+                                <span class="icon-search"></span>
+                                <span><?php p($l->t('Search')); ?></span>
+                            </button>
+                            <button id="clear-search" class="button-clear" title="<?php p($l->t('Clear search')); ?>">
+                                <span class="icon-close"></span>
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="drivers-table-container">

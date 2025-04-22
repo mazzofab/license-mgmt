@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const deleteConfirmationModal = document.getElementById('delete-confirmation-modal');
     const modalTitle = document.getElementById('modal-title');
     const searchInput = document.getElementById('driver-search');
+    const searchButton = document.getElementById('search-button'); // New search button element
+    const clearSearchButton = document.getElementById('clear-search-button'); // Optional clear button
     
     // State
     let drivers = [];
@@ -65,25 +67,35 @@ document.addEventListener('DOMContentLoaded', function() {
             loadMoreDrivers();
         });
         
-        // Search input - debounced search with slight delay
-        let searchTimeout = null;
-        searchInput.addEventListener('input', function() {
-            const query = this.value.trim();
-            
-            // Clear previous timeout
-            if (searchTimeout) {
-                clearTimeout(searchTimeout);
+        // Search button click - triggers search
+        searchButton.addEventListener('click', function() {
+            const query = searchInput.value.trim();
+            if (query !== currentSearchQuery) {
+                currentSearchQuery = query;
+                currentPage = 1;
+                loadDrivers();
             }
-            
-            // Set a new timeout to prevent too many requests while typing
-            searchTimeout = setTimeout(function() {
-                if (query !== currentSearchQuery) {
-                    currentSearchQuery = query;
+        });
+        
+        // Enter key in search input also triggers search
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent form submission if inside a form
+                searchButton.click(); // Trigger search button click
+            }
+        });
+        
+        // Clear search button (if present)
+        if (clearSearchButton) {
+            clearSearchButton.addEventListener('click', function() {
+                searchInput.value = '';
+                if (currentSearchQuery !== '') {
+                    currentSearchQuery = '';
                     currentPage = 1;
                     loadDrivers();
                 }
-            }, 300); // 300ms delay
-        });
+            });
+        }
         
         // Close modals when clicking outside
         window.addEventListener('click', function(event) {
