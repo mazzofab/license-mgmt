@@ -85,17 +85,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 300); // 300ms delay
         });
         
-        // Clear search button (if present)
-        const clearSearchButton = document.getElementById('clear-search');
-        if (clearSearchButton) {
-            clearSearchButton.addEventListener('click', function() {
-                searchInput.value = '';
-                currentSearchQuery = '';
-                currentPage = 1;
-                loadDrivers();
-            });
-        }
-        
         // Close modals when clicking outside
         window.addEventListener('click', function(event) {
             if (event.target === driverEditorModal || event.target === deleteConfirmationModal) {
@@ -160,11 +149,21 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error fetching drivers:', error);
-            driversList.innerHTML = '<tr class="empty-row"><td colspan="6">' + 
-                t('driverlicensemgmt', 'Error loading drivers. Please try again.') + '</td></tr>';
+            
+            let errorMessage = t('driverlicensemgmt', 'Error loading drivers. Please try again.');
+            if (error.message) {
+                // If we have a specific error message, display it
+                if (error.message.includes('not found') || error.message.includes('does not exist')) {
+                    errorMessage = t('driverlicensemgmt', 'Driver not found. It may have been deleted.');
+                } else {
+                    errorMessage = t('driverlicensemgmt', 'Error loading drivers: ') + error.message;
+                }
+            }
+            
+            driversList.innerHTML = '<tr class="empty-row"><td colspan="6">' + errorMessage + '</td></tr>';
             
             // Show notification
-            OC.Notification.showTemporary(t('driverlicensemgmt', 'Error loading drivers: ') + error.message);
+            OC.Notification.showTemporary(errorMessage);
             
             // Hide load more button on error
             loadMoreButton.style.display = 'none';
@@ -198,6 +197,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const now = new Date();
         
         drivers.forEach(driver => {
+            // Skip invalid driver objects
+            if (!driver || !driver.id) {
+                console.warn('Invalid driver object:', driver);
+                return;
+            }
+            
             // Improved date handling - handle various date formats
             let expiryDateObj;
             let expiryDisplay = '';
@@ -351,7 +356,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (driverId) {
             // Edit mode
             modalTitle.textContent = t('driverlicensemgmt', 'Edit Driver');
-            const driver = drivers.find(d => d.id == driverId);
+            const driver = drivers.find(d => d && d.id == driverId);
             
             if (driver) {
                 document.getElementById('driver-id').value = driver.id;
@@ -385,6 +390,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 document.getElementById('expiry_date').value = expiryDateStr;
                 document.getElementById('phone_number').value = driver.phoneNumber;
+            } else {
+                // Driver not found - show error and don't open modal
+                OC.Notification.showTemporary(t('driverlicensemgmt', 'Error: Driver not found. It may have been deleted.'));
+                return;
             }
         } else {
             // Add mode
@@ -510,7 +519,17 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error deleting driver:', error);
-            OC.Notification.showTemporary(error.message || t('driverlicensemgmt', 'Error deleting driver'));
+            
+            let errorMessage = t('driverlicensemgmt', 'Error deleting driver');
+            if (error.message) {
+                if (error.message.includes('not found')) {
+                    errorMessage = t('driverlicensemgmt', 'Driver not found. It may have been already deleted.');
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+            
+            OC.Notification.showTemporary(errorMessage);
         });
     }
     

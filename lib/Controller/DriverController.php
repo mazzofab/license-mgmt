@@ -5,6 +5,8 @@ use Exception;
 use OCA\DriverLicenseMgmt\AppInfo\Application;
 use OCA\DriverLicenseMgmt\Service\DriverService;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\AppFramework\Db\MultipleObjectsReturnedException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\JSONResponse;
@@ -28,10 +30,14 @@ class DriverController extends Controller {
      * @return DataResponse
      */
     public function index(?int $limit = null, ?int $offset = null): DataResponse {
-        return new DataResponse([
-            'data' => $this->service->findAll($this->userId, $limit, $offset),
-            'total' => $this->service->count($this->userId)
-        ]);
+        try {
+            return new DataResponse([
+                'data' => $this->service->findAll($this->userId, $limit, $offset),
+                'total' => $this->service->count($this->userId)
+            ]);
+        } catch (Exception $e) {
+            return new DataResponse(['message' => $e->getMessage()], Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
     }
 
     /**
@@ -43,8 +49,12 @@ class DriverController extends Controller {
     public function show(int $id): DataResponse {
         try {
             return new DataResponse($this->service->find($id, $this->userId));
+        } catch (DoesNotExistException $e) {
+            return new DataResponse(['message' => 'Driver not found.'], Http::STATUS_NOT_FOUND);
+        } catch (MultipleObjectsReturnedException $e) {
+            return new DataResponse(['message' => 'Internal database error.'], Http::STATUS_INTERNAL_SERVER_ERROR);
         } catch (Exception $e) {
-            return new DataResponse(['message' => $e->getMessage()], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['message' => $e->getMessage()], Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -88,11 +98,10 @@ class DriverController extends Controller {
                 $id, $name, $surname, $licenseNumber, $expiryDate, $phoneNumber, $this->userId
             );
             return new DataResponse($driver);
+        } catch (DoesNotExistException $e) {
+            return new DataResponse(['message' => 'Driver not found.'], Http::STATUS_NOT_FOUND);
         } catch (Exception $e) {
-            $code = ($e instanceof \OCP\AppFramework\Db\DoesNotExistException) 
-                ? Http::STATUS_NOT_FOUND 
-                : Http::STATUS_BAD_REQUEST;
-            return new DataResponse(['message' => $e->getMessage()], $code);
+            return new DataResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }
     }
 
@@ -106,11 +115,10 @@ class DriverController extends Controller {
         try {
             $driver = $this->service->delete($id, $this->userId);
             return new DataResponse($driver);
+        } catch (DoesNotExistException $e) {
+            return new DataResponse(['message' => 'Driver not found.'], Http::STATUS_NOT_FOUND);
         } catch (Exception $e) {
-            $code = ($e instanceof \OCP\AppFramework\Db\DoesNotExistException) 
-                ? Http::STATUS_NOT_FOUND 
-                : Http::STATUS_BAD_REQUEST;
-            return new DataResponse(['message' => $e->getMessage()], $code);
+            return new DataResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }
     }
 
