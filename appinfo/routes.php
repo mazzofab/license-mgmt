@@ -8,13 +8,15 @@ return [
 
         // Driver API routes
         ['name' => 'driver#index', 'url' => '/api/drivers', 'verb' => 'GET'],
+        
+        // Important: Search route MUST come BEFORE the driver/{id} route
+        ['name' => 'driver#search', 'url' => '/api/drivers/search', 'verb' => 'GET'],
+        
+        // These should come after the search route
         ['name' => 'driver#show', 'url' => '/api/drivers/{id}', 'verb' => 'GET'],
         ['name' => 'driver#create', 'url' => '/api/drivers', 'verb' => 'POST'],
         ['name' => 'driver#update', 'url' => '/api/drivers/{id}', 'verb' => 'PUT'],
         ['name' => 'driver#destroy', 'url' => '/api/drivers/{id}', 'verb' => 'DELETE'],
-        
-        // Important: Search route MUST come after the driver/{id} route to avoid conflicts
-        ['name' => 'driver#search', 'url' => '/api/drivers/search', 'verb' => 'GET'],
 
         // Notification API routes
         ['name' => 'notification#index', 'url' => '/api/notifications', 'verb' => 'GET'],
