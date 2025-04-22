@@ -94,7 +94,7 @@ style('driverlicensemgmt', 'style');
                 
                 <div class="form-group">
                     <label for="expiry_date"><?php p($l->t('Expiry Date')); ?> *</label>
-                    <input type="date" id="expiry_date" name="expiryDate" required>
+                    <input type="text" id="expiry_date" name="expiryDate" class="datepicker" required>
                 </div>
                 
                 <div class="form-group">
@@ -130,3 +130,82 @@ style('driverlicensemgmt', 'style');
         </div>
     </div>
 </div>
+
+<script>
+// Add this script block to initialize the date picker with locale support
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if jQuery UI datepicker is available (included in Nextcloud)
+    if ($.datepicker) {
+        // Get user locale from Nextcloud
+        const userLocale = OC.getLocale() || navigator.language || 'en';
+        
+        // Initialize the datepicker with locale settings
+        $('#expiry_date').datepicker({
+            dateFormat: OC.datepickerDateFormat || 'yy-mm-dd',
+            firstDay: OC.datepickerFirstDay || 0,
+            changeMonth: true,
+            changeYear: true,
+            yearRange: 'c-10:c+10',
+            showOtherMonths: true,
+            selectOtherMonths: true
+        });
+        
+        // Add custom handling for form submission
+        // This ensures the date is converted to the proper format for backend processing
+        $('#driver-form').on('submit', function(e) {
+            try {
+                // Get the date from datepicker
+                const datepickerDate = $('#expiry_date').datepicker('getDate');
+                
+                // If we have a valid date, convert it to YYYY-MM-DD format for backend
+                if (datepickerDate) {
+                    const year = datepickerDate.getFullYear();
+                    const month = String(datepickerDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(datepickerDate.getDate()).padStart(2, '0');
+                    
+                    // Store the ISO formatted date in a hidden field for submission
+                    if (!$('#expiry_date_formatted').length) {
+                        $('<input>').attr({
+                            type: 'hidden',
+                            id: 'expiry_date_formatted',
+                            name: 'expiryDateFormatted',
+                            value: `${year}-${month}-${day}`
+                        }).appendTo('#driver-form');
+                    } else {
+                        $('#expiry_date_formatted').val(`${year}-${month}-${day}`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error formatting date:', error);
+            }
+        });
+        
+        // Handle date formats when editing an existing driver
+        // Add this to your existing code that populates the form
+        // This code assumes your drivers.js has an editDriver function that populates the form
+        const originalEditDriver = window.editDriver;
+        if (typeof originalEditDriver === 'function') {
+            window.editDriver = function(driverId) {
+                // Call the original function
+                originalEditDriver(driverId);
+                
+                // Additional code to handle date formatting
+                // This should be adapted to match how your editDriver function works
+                setTimeout(function() {
+                    const expiryDate = $('#expiry_date').val();
+                    if (expiryDate) {
+                        try {
+                            // Parse the ISO date into a Date object
+                            const date = new Date(expiryDate);
+                            // Set it in the datepicker
+                            $('#expiry_date').datepicker('setDate', date);
+                        } catch (error) {
+                            console.error('Error parsing date:', error);
+                        }
+                    }
+                }, 100); // Short delay to ensure the original function has completed
+            };
+        }
+    }
+});
+</script>
