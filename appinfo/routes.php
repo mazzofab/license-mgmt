@@ -20,5 +20,8 @@ return [
         ['name' => 'notification#create', 'url' => '/api/notifications', 'verb' => 'POST'],
         ['name' => 'notification#update', 'url' => '/api/notifications/{id}', 'verb' => 'PUT'],
         ['name' => 'notification#destroy', 'url' => '/api/notifications/{id}', 'verb' => 'DELETE'],
+        
+        // Test routes (for development/testing only)
+        ['name' => 'test#sendNotification', 'url' => '/api/test/notification/{driverId}/{days}', 'verb' => 'GET'],
     ]
 ];

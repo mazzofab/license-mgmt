@@ -226,6 +226,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                 title="${t('driverlicensemgmt', 'Delete')}">
                             <span class="icon-delete"></span>
                         </button>
+                        <button class="test-notification-button" data-id="${driver.id}" 
+                                title="${t('driverlicensemgmt', 'Test Notification')}">
+                            <span class="icon-notifications"></span>
+                        </button>
                     </div>
                 </td>
             `;
@@ -242,7 +246,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 openDeleteConfirmationModal(driverId, driverName);
             });
             
+            // Add event listener for test notification button
+            row.querySelector('.test-notification-button').addEventListener('click', function() {
+                const driverId = this.getAttribute('data-id');
+                sendTestNotification(driverId);
+            });
+            
             driversList.appendChild(row);
+        });
+    }
+    
+    /**
+     * Send a test notification for a driver
+     *
+     * @param {string} driverId - Driver ID to send notification for
+     */
+    function sendTestNotification(driverId) {
+        const url = OC.generateUrl(`/apps/driverlicensemgmt/api/test/notification/${driverId}/7`);
+        
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'requesttoken': OC.requestToken
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.message || 'Error sending test notification');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Show success message
+            OC.Notification.showTemporary(t('driverlicensemgmt', 'Test notification sent. Check your notification bell.'));
+        })
+        .catch(error => {
+            console.error('Error sending test notification:', error);
+            OC.Notification.showTemporary(error.message || t('driverlicensemgmt', 'Error sending test notification'));
         });
     }
     

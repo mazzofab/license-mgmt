@@ -5,6 +5,7 @@ use Exception;
 use OCA\DriverLicenseMgmt\Db\DriverMapper;
 use OCA\DriverLicenseMgmt\Db\NotificationMapper;
 use OCA\DriverLicenseMgmt\Db\ReminderSentMapper;
+use OCA\DriverLicenseMgmt\Notification\NotificationManager;
 use OCP\IL10N;
 use OCP\Mail\IMailer;
 use Psr\Log\LoggerInterface;
@@ -13,6 +14,7 @@ class ReminderService {
     private DriverMapper $driverMapper;
     private NotificationMapper $notificationMapper;
     private ReminderSentMapper $reminderSentMapper;
+    private NotificationManager $notificationManager;
     private IMailer $mailer;
     private LoggerInterface $logger;
     private IL10N $l;
@@ -21,6 +23,7 @@ class ReminderService {
         DriverMapper $driverMapper,
         NotificationMapper $notificationMapper,
         ReminderSentMapper $reminderSentMapper,
+        NotificationManager $notificationManager,
         IMailer $mailer,
         LoggerInterface $logger,
         IL10N $l
@@ -28,6 +31,7 @@ class ReminderService {
         $this->driverMapper = $driverMapper;
         $this->notificationMapper = $notificationMapper;
         $this->reminderSentMapper = $reminderSentMapper;
+        $this->notificationManager = $notificationManager;
         $this->mailer = $mailer;
         $this->logger = $logger;
         $this->l = $l;
@@ -47,7 +51,8 @@ class ReminderService {
         $result = [
             'success' => 0,
             'failed' => 0,
-            'skipped' => 0
+            'skipped' => 0,
+            'notifications' => 0
         ];
 
         $now = new \DateTime();
@@ -55,36 +60,53 @@ class ReminderService {
         
         // Get all drivers with licenses expiring on the target date
         $expiringDrivers = $this->driverMapper->findExpiring($targetDate, $targetDate);
-        $notifications = $this->notificationMapper->findActive();
+        $emailRecipients = $this->notificationMapper->findActive();
 
-        if (empty($expiringDrivers) || empty($notifications)) {
+        if (empty($expiringDrivers)) {
             return $result;
         }
 
         foreach ($expiringDrivers as $driver) {
-            foreach ($notifications as $notification) {
+            // Always send Nextcloud notifications to the driver's user
+            try {
+                $this->notificationManager->sendExpiryNotification($driver, $daysToCheck, $driver->getUserId());
+                $result['notifications']++;
+            } catch (Exception $e) {
+                $this->logger->error('Failed to send license expiry notification: ' . $e->getMessage(), [
+                    'app' => 'driverlicensemgmt',
+                    'driver_id' => $driver->getId()
+                ]);
+            }
+
+            // Skip email processing if no recipients
+            if (empty($emailRecipients)) {
+                continue;
+            }
+
+            // Send email notifications
+            foreach ($emailRecipients as $recipient) {
                 // Check if this reminder has already been sent to avoid duplicates
                 if ($this->reminderSentMapper->hasReminderBeenSent(
-                    $driver->getId(), $notification->getId(), $daysToCheck
+                    $driver->getId(), $recipient->getId(), $daysToCheck
                 )) {
                     $result['skipped']++;
                     continue;
                 }
 
                 try {
-                    $this->sendReminderEmail($driver, $notification, $daysToCheck);
+                    $this->sendReminderEmail($driver, $recipient, $daysToCheck);
                     
                     // Record that we've sent this reminder
                     $this->reminderSentMapper->recordReminderSent(
-                        $driver->getId(), $notification->getId(), $daysToCheck
+                        $driver->getId(), $recipient->getId(), $daysToCheck
                     );
                     
                     $result['success']++;
                 } catch (Exception $e) {
-                    $this->logger->error('Failed to send license expiry reminder: ' . $e->getMessage(), [
+                    $this->logger->error('Failed to send license expiry reminder email: ' . $e->getMessage(), [
                         'app' => 'driverlicensemgmt',
                         'driver_id' => $driver->getId(),
-                        'notification_id' => $notification->getId()
+                        'notification_id' => $recipient->getId()
                     ]);
                     $result['failed']++;
                 }

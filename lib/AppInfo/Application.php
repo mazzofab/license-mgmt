@@ -2,11 +2,13 @@
 namespace OCA\DriverLicenseMgmt\AppInfo;
 
 use OCA\DriverLicenseMgmt\BackgroundJob\SendReminders;
+use OCA\DriverLicenseMgmt\Notification\NotificationProvider;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\BackgroundJob\IJobList;
+use OCP\Notification\IManager;
 
 class Application extends App implements IBootstrap {
     public const APP_ID = 'driverlicensemgmt';
@@ -16,8 +18,8 @@ class Application extends App implements IBootstrap {
     }
 
     public function register(IRegistrationContext $context): void {
-        // Nextcloud 31 doesn't support registerBackgroundJob in the registration context
-        // We'll register it in the boot method instead
+        // Register notification provider
+        $context->registerNotifierService(NotificationProvider::class);
     }
 
     public function boot(IBootContext $context): void {
@@ -26,5 +28,9 @@ class Application extends App implements IBootstrap {
         if (!$jobList->has(SendReminders::class, null)) {
             $jobList->add(SendReminders::class);
         }
+
+        // Register the notifier with the notification manager
+        $notificationManager = $context->getServerContainer()->get(IManager::class);
+        $notificationManager->registerNotifierService(NotificationProvider::class);
     }
 }
