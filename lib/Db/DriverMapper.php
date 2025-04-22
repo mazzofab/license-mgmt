@@ -105,39 +105,104 @@ class DriverMapper extends QBMapper {
      * @return Entity[] drivers
      */
     public function search(string $userId, string $query, int $limit = null, int $offset = null): array {
+        // If the search query is empty, return all drivers
         if (empty($query) || trim($query) === '') {
             return $this->findAll($userId, $limit, $offset);
         }
         
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere(
-                $qb->expr()->orX(
-                    $qb->expr()->iLike('name', $qb->createNamedParameter('%' . $this->db->escapeLikeParameter($query) . '%')),
-                    $qb->expr()->iLike('surname', $qb->createNamedParameter('%' . $this->db->escapeLikeParameter($query) . '%')),
-                    $qb->expr()->iLike('license_number', $qb->createNamedParameter('%' . $this->db->escapeLikeParameter($query) . '%')),
-                    $qb->expr()->iLike('phone_number', $qb->createNamedParameter('%' . $this->db->escapeLikeParameter($query) . '%'))
-                )
-            )
-            ->orderBy('surname', 'ASC')
-            ->addOrderBy('name', 'ASC');
-
-        if ($limit !== null) {
-            $qb->setMaxResults($limit);
-        }
-        if ($offset !== null) {
-            $qb->setFirstResult($offset);
-        }
-
+        // We'll log what's happening to help troubleshoot
+        \OC::$server->getLogger()->debug('Searching for drivers: query="' . $query . '", userId="' . $userId . '"', ['app' => 'driverlicensemgmt']);
+        
         try {
-            return $this->findEntities($qb);
+            // Get the database platform
+            $platform = $this->db->getDatabasePlatform();
+            $qb = $this->db->getQueryBuilder();
+            
+            // Prepare the search query - normalize it to lowercase for case-insensitive search
+            $searchQuery = '%' . strtolower($query) . '%';
+            \OC::$server->getLogger()->debug('Normalized search query: ' . $searchQuery, ['app' => 'driverlicensemgmt']);
+            
+            // Build the query with LOWER() function for case-insensitive search
+            $qb->select('*')
+                ->from($this->getTableName())
+                ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+                ->andWhere(
+                    $qb->expr()->orX(
+                        $qb->expr()->like($qb->func()->lower('name'), $qb->createNamedParameter($searchQuery)),
+                        $qb->expr()->like($qb->func()->lower('surname'), $qb->createNamedParameter($searchQuery)),
+                        $qb->expr()->like($qb->func()->lower('license_number'), $qb->createNamedParameter($searchQuery)),
+                        $qb->expr()->like($qb->func()->lower('phone_number'), $qb->createNamedParameter($searchQuery))
+                    )
+                )
+                ->orderBy('surname', 'ASC')
+                ->addOrderBy('name', 'ASC');
+            
+            if ($limit !== null) {
+                $qb->setMaxResults($limit);
+            }
+            if ($offset !== null) {
+                $qb->setFirstResult($offset);
+            }
+            
+            // Log the SQL query for troubleshooting
+            $sql = $qb->getSQL();
+            \OC::$server->getLogger()->debug('Search SQL: ' . $sql, ['app' => 'driverlicensemgmt']);
+            
+            $results = $this->findEntities($qb);
+            
+            // Log the number of results found
+            \OC::$server->getLogger()->debug('Search results count: ' . count($results), ['app' => 'driverlicensemgmt']);
+            
+            return $results;
+            
         } catch (\Exception $e) {
             // Log the error
-            \OC::$server->getLogger()->error('Error searching drivers: ' . $e->getMessage(), ['app' => 'driverlicensemgmt']);
-            // Return empty array on error
-            return [];
+            \OC::$server->getLogger()->error('Error searching drivers: ' . $e->getMessage(), [
+                'app' => 'driverlicensemgmt',
+                'exception' => $e
+            ]);
+            
+            // Try a different approach if the first one fails
+            try {
+                // Simpler approach as a fallback
+                $qb = $this->db->getQueryBuilder();
+                $qb->select('*')
+                    ->from($this->getTableName())
+                    ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+                
+                // Add individual LIKE conditions for each field
+                $searchPattern = '%' . $this->db->escapeLikeParameter($query) . '%';
+                $qb->andWhere(
+                    $qb->expr()->orX(
+                        $qb->expr()->like('name', $qb->createNamedParameter($searchPattern)),
+                        $qb->expr()->like('surname', $qb->createNamedParameter($searchPattern)),
+                        $qb->expr()->like('license_number', $qb->createNamedParameter($searchPattern)),
+                        $qb->expr()->like('phone_number', $qb->createNamedParameter($searchPattern))
+                    )
+                );
+                
+                $qb->orderBy('surname', 'ASC')
+                    ->addOrderBy('name', 'ASC');
+                
+                if ($limit !== null) {
+                    $qb->setMaxResults($limit);
+                }
+                if ($offset !== null) {
+                    $qb->setFirstResult($offset);
+                }
+                
+                return $this->findEntities($qb);
+                
+            } catch (\Exception $e2) {
+                // Log the error from the second attempt
+                \OC::$server->getLogger()->error('Error in fallback search: ' . $e2->getMessage(), [
+                    'app' => 'driverlicensemgmt',
+                    'exception' => $e2
+                ]);
+                
+                // Return empty array on error
+                return [];
+            }
         }
     }
 }
