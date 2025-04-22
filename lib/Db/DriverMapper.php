@@ -6,10 +6,15 @@ use OCP\AppFramework\Db\Entity;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
+use Psr\Log\LoggerInterface;
 
 class DriverMapper extends QBMapper {
-    public function __construct(IDBConnection $db) {
+    /** @var LoggerInterface */
+    private $logger;
+    
+    public function __construct(IDBConnection $db, LoggerInterface $logger) {
         parent::__construct($db, 'dlm_drivers', Driver::class);
+        $this->logger = $logger;
     }
 
     /**
@@ -111,7 +116,7 @@ class DriverMapper extends QBMapper {
         }
         
         // We'll log what's happening to help troubleshoot
-        \OC::$server->getLogger()->debug('Searching for drivers: query="' . $query . '", userId="' . $userId . '"', ['app' => 'driverlicensemgmt']);
+        $this->logger->debug('Searching for drivers: query="' . $query . '", userId="' . $userId . '"', ['app' => 'driverlicensemgmt']);
         
         try {
             // Get the database platform
@@ -120,7 +125,7 @@ class DriverMapper extends QBMapper {
             
             // Prepare the search query - normalize it to lowercase for case-insensitive search
             $searchQuery = '%' . strtolower($query) . '%';
-            \OC::$server->getLogger()->debug('Normalized search query: ' . $searchQuery, ['app' => 'driverlicensemgmt']);
+            $this->logger->debug('Normalized search query: ' . $searchQuery, ['app' => 'driverlicensemgmt']);
             
             // Build the query with LOWER() function for case-insensitive search
             $qb->select('*')
@@ -146,18 +151,18 @@ class DriverMapper extends QBMapper {
             
             // Log the SQL query for troubleshooting
             $sql = $qb->getSQL();
-            \OC::$server->getLogger()->debug('Search SQL: ' . $sql, ['app' => 'driverlicensemgmt']);
+            $this->logger->debug('Search SQL: ' . $sql, ['app' => 'driverlicensemgmt']);
             
             $results = $this->findEntities($qb);
             
             // Log the number of results found
-            \OC::$server->getLogger()->debug('Search results count: ' . count($results), ['app' => 'driverlicensemgmt']);
+            $this->logger->debug('Search results count: ' . count($results), ['app' => 'driverlicensemgmt']);
             
             return $results;
             
         } catch (\Exception $e) {
             // Log the error
-            \OC::$server->getLogger()->error('Error searching drivers: ' . $e->getMessage(), [
+            $this->logger->error('Error searching drivers: ' . $e->getMessage(), [
                 'app' => 'driverlicensemgmt',
                 'exception' => $e
             ]);
@@ -195,7 +200,7 @@ class DriverMapper extends QBMapper {
                 
             } catch (\Exception $e2) {
                 // Log the error from the second attempt
-                \OC::$server->getLogger()->error('Error in fallback search: ' . $e2->getMessage(), [
+                $this->logger->error('Error in fallback search: ' . $e2->getMessage(), [
                     'app' => 'driverlicensemgmt',
                     'exception' => $e2
                 ]);
