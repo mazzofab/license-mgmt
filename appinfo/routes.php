@@ -12,6 +12,8 @@ return [
         ['name' => 'driver#create', 'url' => '/api/drivers', 'verb' => 'POST'],
         ['name' => 'driver#update', 'url' => '/api/drivers/{id}', 'verb' => 'PUT'],
         ['name' => 'driver#destroy', 'url' => '/api/drivers/{id}', 'verb' => 'DELETE'],
+        
+        // Important: Search route MUST come after the driver/{id} route to avoid conflicts
         ['name' => 'driver#search', 'url' => '/api/drivers/search', 'verb' => 'GET'],
 
         // Notification API routes
@@ -20,6 +22,9 @@ return [
         ['name' => 'notification#create', 'url' => '/api/notifications', 'verb' => 'POST'],
         ['name' => 'notification#update', 'url' => '/api/notifications/{id}', 'verb' => 'PUT'],
         ['name' => 'notification#destroy', 'url' => '/api/notifications/{id}', 'verb' => 'DELETE'],
+        
+        // Import routes
+        ['name' => 'import#import', 'url' => '/api/import/drivers', 'verb' => 'POST'],
         
         // Test routes (for development/testing only)
         ['name' => 'test#sendNotification', 'url' => '/api/test/notification/{driverId}/{days}', 'verb' => 'GET'],

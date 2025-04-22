@@ -11,15 +11,23 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
+use Psr\Log\LoggerInterface;
 
 class DriverController extends Controller {
     private DriverService $service;
     private string $userId;
+    private LoggerInterface $logger;
 
-    public function __construct(IRequest $request, DriverService $service, $userId) {
+    public function __construct(
+        IRequest $request, 
+        DriverService $service, 
+        $userId, 
+        LoggerInterface $logger
+    ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
         $this->userId = $userId;
+        $this->logger = $logger;
     }
 
     /**
@@ -36,6 +44,10 @@ class DriverController extends Controller {
                 'total' => $this->service->count($this->userId)
             ]);
         } catch (Exception $e) {
+            $this->logger->error('Error fetching drivers: ' . $e->getMessage(), [
+                'app' => Application::APP_ID,
+                'exception' => $e
+            ]);
             return new DataResponse(['message' => $e->getMessage()], Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
@@ -54,6 +66,11 @@ class DriverController extends Controller {
         } catch (MultipleObjectsReturnedException $e) {
             return new DataResponse(['message' => 'Internal database error.'], Http::STATUS_INTERNAL_SERVER_ERROR);
         } catch (Exception $e) {
+            $this->logger->error('Error fetching driver: ' . $e->getMessage(), [
+                'app' => Application::APP_ID,
+                'exception' => $e,
+                'id' => $id
+            ]);
             return new DataResponse(['message' => $e->getMessage()], Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
@@ -76,6 +93,10 @@ class DriverController extends Controller {
             );
             return new DataResponse($driver, Http::STATUS_CREATED);
         } catch (Exception $e) {
+            $this->logger->error('Error creating driver: ' . $e->getMessage(), [
+                'app' => Application::APP_ID,
+                'exception' => $e
+            ]);
             return new DataResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }
     }
@@ -101,6 +122,11 @@ class DriverController extends Controller {
         } catch (DoesNotExistException $e) {
             return new DataResponse(['message' => 'Driver not found.'], Http::STATUS_NOT_FOUND);
         } catch (Exception $e) {
+            $this->logger->error('Error updating driver: ' . $e->getMessage(), [
+                'app' => Application::APP_ID,
+                'exception' => $e,
+                'id' => $id
+            ]);
             return new DataResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }
     }
@@ -118,6 +144,11 @@ class DriverController extends Controller {
         } catch (DoesNotExistException $e) {
             return new DataResponse(['message' => 'Driver not found.'], Http::STATUS_NOT_FOUND);
         } catch (Exception $e) {
+            $this->logger->error('Error deleting driver: ' . $e->getMessage(), [
+                'app' => Application::APP_ID,
+                'exception' => $e,
+                'id' => $id
+            ]);
             return new DataResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }
     }
@@ -132,9 +163,26 @@ class DriverController extends Controller {
      */
     public function search(string $query, ?int $limit = null, ?int $offset = null): DataResponse {
         try {
+            $this->logger->debug('Search requested: ' . $query, [
+                'app' => Application::APP_ID,
+                'userId' => $this->userId,
+                'limit' => $limit,
+                'offset' => $offset
+            ]);
+            
             $results = $this->service->search($this->userId, $query, $limit, $offset);
+            
+            $this->logger->debug('Search results count: ' . count($results), [
+                'app' => Application::APP_ID
+            ]);
+            
             return new DataResponse($results);
         } catch (Exception $e) {
+            $this->logger->error('Error searching drivers: ' . $e->getMessage(), [
+                'app' => Application::APP_ID,
+                'exception' => $e,
+                'query' => $query
+            ]);
             return new DataResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }
     }

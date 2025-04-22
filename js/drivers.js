@@ -99,16 +99,22 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadDrivers() {
         driversList.innerHTML = '<tr class="empty-row"><td colspan="6">' + t('driverlicensemgmt', 'Loading drivers...') + '</td></tr>';
         
-        let url = OC.generateUrl('/apps/driverlicensemgmt/api/drivers');
+        // Determine the URL based on whether we're searching or not
+        let url;
         const params = {
             limit: driversPerPage,
             offset: (currentPage - 1) * driversPerPage
         };
         
-        if (currentSearchQuery) {
-            url = OC.generateUrl('/apps/driverlicensemgmt/api/drivers/search');
+        // If searching, add query parameter
+        if (currentSearchQuery && currentSearchQuery.trim() !== '') {
+            url = OC.generateUrl('/api/drivers/search');
             params.query = currentSearchQuery;
+        } else {
+            url = OC.generateUrl('/api/drivers');
         }
+        
+        console.log('Loading drivers from:', url, 'with params:', params);
         
         fetch(url + '?' + new URLSearchParams(params), {
             method: 'GET',
@@ -126,18 +132,23 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(data => {
+            console.log('Received data:', data);
+            
             if (currentPage === 1) {
                 drivers = [];
             }
             
+            // Handle different response formats
             if (Array.isArray(data)) {
                 // Search results or array response
                 drivers = currentPage === 1 ? data : drivers.concat(data);
                 isLastPage = data.length < driversPerPage;
+                console.log('Processed as array data, drivers count:', drivers.length);
             } else if (data.data && Array.isArray(data.data)) {
                 // Standard paginated response
                 drivers = currentPage === 1 ? data.data : drivers.concat(data.data);
                 isLastPage = data.data.length < driversPerPage || (data.total && drivers.length >= data.total);
+                console.log('Processed as paginated data, drivers count:', drivers.length);
             } else {
                 // Unknown format
                 console.error('Unexpected data format:', data);
@@ -184,7 +195,7 @@ document.addEventListener('DOMContentLoaded', function() {
      * Render drivers list
      */
     function renderDrivers() {
-        if (drivers.length === 0) {
+        if (!drivers || drivers.length === 0) {
             let message = currentSearchQuery 
                 ? t('driverlicensemgmt', 'No drivers found matching your search criteria.')
                 : t('driverlicensemgmt', 'No drivers found. Add your first driver using the + button above.');
@@ -198,10 +209,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         drivers.forEach(driver => {
             // Skip invalid driver objects
-            if (!driver || !driver.id) {
+            if (!driver || typeof driver !== 'object' || !driver.id) {
                 console.warn('Invalid driver object:', driver);
                 return;
             }
+            
+            // Ensure all required properties exist
+            driver.name = driver.name || '';
+            driver.surname = driver.surname || '';
+            driver.licenseNumber = driver.licenseNumber || '';
+            driver.phoneNumber = driver.phoneNumber || '';
             
             // Improved date handling - handle various date formats
             let expiryDateObj;
@@ -221,7 +238,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         const parts = driver.expiryDate.split('-');
                         if (parts.length === 3) {
                             // YYYY-MM-DD format
-                            expiryDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                            expiryDateObj = new Date(parseInt(parts[0], 10), 
+                                                   parseInt(parts[1], 10) - 1, 
+                                                   parseInt(parts[2], 10));
                         }
                     }
                 } else if (driver.expiryDate && driver.expiryDate.date) {
@@ -246,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } catch (e) {
                 // Error parsing date
-                console.error('Error parsing date:', e, driver.expiryDate);
+                console.error('Error parsing date for driver ' + driver.id + ':', e, driver.expiryDate);
                 expiryDisplay = t('driverlicensemgmt', 'Invalid Date');
                 expiryClass = 'expiry-expired';
             }
@@ -279,19 +298,22 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             
             // Add event listeners for action buttons
-            row.querySelector('.edit-button').addEventListener('click', function() {
+            row.querySelector('.edit-button').addEventListener('click', function(e) {
+                e.preventDefault();
                 const driverId = this.getAttribute('data-id');
                 openDriverEditorModal(driverId);
             });
             
-            row.querySelector('.delete-button').addEventListener('click', function() {
+            row.querySelector('.delete-button').addEventListener('click', function(e) {
+                e.preventDefault();
                 const driverId = this.getAttribute('data-id');
                 const driverName = this.getAttribute('data-name');
                 openDeleteConfirmationModal(driverId, driverName);
             });
             
             // Add event listener for test notification button
-            row.querySelector('.test-notification-button').addEventListener('click', function() {
+            row.querySelector('.test-notification-button').addEventListener('click', function(e) {
+                e.preventDefault();
                 const driverId = this.getAttribute('data-id');
                 sendTestNotification(driverId);
             });
@@ -306,7 +328,12 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {string} driverId - Driver ID to send notification for
      */
     function sendTestNotification(driverId) {
-        const url = OC.generateUrl(`/apps/driverlicensemgmt/api/test/notification/${driverId}/7`);
+        if (!driverId) {
+            OC.Notification.showTemporary(t('driverlicensemgmt', 'Invalid driver ID for notification'));
+            return;
+        }
+        
+        const url = OC.generateUrl(`/api/test/notification/${driverId}/7`);
         
         fetch(url, {
             method: 'GET',
@@ -329,7 +356,17 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error sending test notification:', error);
-            OC.Notification.showTemporary(error.message || t('driverlicensemgmt', 'Error sending test notification'));
+            
+            let errorMessage = t('driverlicensemgmt', 'Error sending test notification');
+            if (error.message) {
+                if (error.message.includes('not found')) {
+                    errorMessage = t('driverlicensemgmt', 'Driver not found. It may have been deleted.');
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+            
+            OC.Notification.showTemporary(errorMessage);
         });
     }
     
@@ -354,15 +391,18 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('driver-id').value = '';
         
         if (driverId) {
-            // Edit mode
-            modalTitle.textContent = t('driverlicensemgmt', 'Edit Driver');
+            // Edit mode - find the driver
             const driver = drivers.find(d => d && d.id == driverId);
             
             if (driver) {
+                console.log('Opening edit modal for driver:', driver);
+                modalTitle.textContent = t('driverlicensemgmt', 'Edit Driver');
+                
                 document.getElementById('driver-id').value = driver.id;
-                document.getElementById('name').value = driver.name;
-                document.getElementById('surname').value = driver.surname;
-                document.getElementById('license_number').value = driver.licenseNumber;
+                document.getElementById('name').value = driver.name || '';
+                document.getElementById('surname').value = driver.surname || '';
+                document.getElementById('license_number').value = driver.licenseNumber || '';
+                document.getElementById('phone_number').value = driver.phoneNumber || '';
                 
                 // Handle different date formats for editing
                 let expiryDateStr = '';
@@ -374,7 +414,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         } else {
                             const parts = driver.expiryDate.split('-');
                             if (parts.length === 3) {
-                                expiryDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                                expiryDateObj = new Date(
+                                    parseInt(parts[0], 10), 
+                                    parseInt(parts[1], 10) - 1, 
+                                    parseInt(parts[2], 10)
+                                );
                             }
                         }
                     } else if (driver.expiryDate && driver.expiryDate.date) {
@@ -389,14 +433,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 document.getElementById('expiry_date').value = expiryDateStr;
-                document.getElementById('phone_number').value = driver.phoneNumber;
             } else {
                 // Driver not found - show error and don't open modal
+                console.error('Driver not found for ID:', driverId);
                 OC.Notification.showTemporary(t('driverlicensemgmt', 'Error: Driver not found. It may have been deleted.'));
+                // Refresh the list to show current data
+                loadDrivers();
                 return;
             }
         } else {
             // Add mode
+            console.log('Opening new driver modal');
             modalTitle.textContent = t('driverlicensemgmt', 'Add Driver');
             // Set default expiry date to 1 year from now
             const oneYearFromNow = new Date();
@@ -413,8 +460,16 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {string} driverName - Driver name for confirmation message
      */
     function openDeleteConfirmationModal(driverId, driverName) {
+        if (!driverId || !drivers.some(d => d && d.id == driverId)) {
+            console.error('Cannot delete: Driver not found for ID:', driverId);
+            OC.Notification.showTemporary(t('driverlicensemgmt', 'Error: Driver not found. It may have been deleted.'));
+            // Refresh the list to show current data
+            loadDrivers();
+            return;
+        }
+        
         document.getElementById('delete-driver-id').value = driverId;
-        document.getElementById('delete-driver-name').textContent = driverName;
+        document.getElementById('delete-driver-name').textContent = driverName || t('driverlicensemgmt', 'this driver');
         deleteConfirmationModal.style.display = 'block';
     }
     
@@ -441,13 +496,23 @@ document.addEventListener('DOMContentLoaded', function() {
             phoneNumber: document.getElementById('phone_number').value
         };
         
-        let url = OC.generateUrl('/apps/driverlicensemgmt/api/drivers');
+        let url = OC.generateUrl('/api/drivers');
         let method = 'POST';
         
         if (isEditMode) {
             url += '/' + driverId;
             method = 'PUT';
+            
+            // Check if driver still exists before trying to update
+            if (!drivers.some(d => d && d.id == driverId)) {
+                closeModals();
+                OC.Notification.showTemporary(t('driverlicensemgmt', 'Error: Driver not found. It may have been deleted.'));
+                loadDrivers();
+                return;
+            }
         }
+        
+        console.log('Saving driver:', driverData, 'to URL:', url, 'with method:', method);
         
         fetch(url, {
             method: method,
@@ -481,7 +546,17 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error saving driver:', error);
-            OC.Notification.showTemporary(error.message || t('driverlicensemgmt', 'Error saving driver'));
+            
+            let errorMessage = t('driverlicensemgmt', 'Error saving driver');
+            if (error.message) {
+                if (error.message.includes('not found')) {
+                    errorMessage = t('driverlicensemgmt', 'Driver not found. It may have been deleted by another user.');
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+            
+            OC.Notification.showTemporary(errorMessage);
         });
     }
     
@@ -490,7 +565,15 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {string} driverId - Driver ID to delete
      */
     function deleteDriver(driverId) {
-        const url = OC.generateUrl(`/apps/driverlicensemgmt/api/drivers/${driverId}`);
+        if (!driverId) {
+            closeModals();
+            OC.Notification.showTemporary(t('driverlicensemgmt', 'Invalid driver ID'));
+            return;
+        }
+        
+        const url = OC.generateUrl(`/api/drivers/${driverId}`);
+        
+        console.log('Deleting driver:', driverId, 'using URL:', url);
         
         fetch(url, {
             method: 'DELETE',
@@ -513,12 +596,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show success message
             OC.Notification.showTemporary(t('driverlicensemgmt', 'Driver deleted successfully'));
             
+            // Remove the driver from the local array
+            drivers = drivers.filter(d => d && d.id != driverId);
+            
             // Refresh the drivers list
             currentPage = 1;
             loadDrivers();
         })
         .catch(error => {
             console.error('Error deleting driver:', error);
+            closeModals();
             
             let errorMessage = t('driverlicensemgmt', 'Error deleting driver');
             if (error.message) {
@@ -530,6 +617,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             OC.Notification.showTemporary(errorMessage);
+            
+            // Refresh the list to show current data
+            loadDrivers();
         });
     }
     
