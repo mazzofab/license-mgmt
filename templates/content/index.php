@@ -1,12 +1,9 @@
 <?php
-// Replace these legacy helper functions
-// script('driverlicensemgmt', 'script');
-// style('driverlicensemgmt', 'style');
-
-// With these direct URL generator calls
+// Use the script() and style() helper methods from the template class instead of direct links
+// These methods properly handle CSP nonces and other security requirements
 ?>
-<script src="<?php p(\OC::$server->getURLGenerator()->linkTo('driverlicensemgmt', 'js/script.js')); ?>"></script>
-<link rel="stylesheet" href="<?php p(\OC::$server->getURLGenerator()->linkTo('driverlicensemgmt', 'css/style.css')); ?>">
+<?php script('driverlicensemgmt', 'script'); ?>
+<?php style('driverlicensemgmt', 'style'); ?>
 
 <div id="app-content">
     <div id="app-content-wrapper">
@@ -72,5 +69,5 @@
     </div>
 </div>
 
-<!-- Load JavaScript files -->
-<script src="<?php p(\OC::$server->getURLGenerator()->linkTo('driverlicensemgmt', 'js/importCSV.js')); ?>"></script>
+<!-- Load importCSV.js script using the proper helper method -->
+<?php script('driverlicensemgmt', 'importCSV'); ?>
