@@ -61,4 +61,4 @@ style('driverlicensemgmt', 'style');
     </div>
 </div>
 
-<script src="<?php print_unescaped(OCP\Util::linkTo('driverlicensemgmt', 'js/importCSV.js')); ?>"></script>
+<script src="<?php p(\OC::$server->getURLGenerator()->linkTo('driverlicensemgmt', 'js/importCSV.js')); ?>"></script>
