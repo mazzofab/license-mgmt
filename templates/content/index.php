@@ -1,7 +1,12 @@
 <?php
-script('driverlicensemgmt', 'script');
-style('driverlicensemgmt', 'style');
+// Replace these legacy helper functions
+// script('driverlicensemgmt', 'script');
+// style('driverlicensemgmt', 'style');
+
+// With these direct URL generator calls
 ?>
+<script src="<?php p(\OC::$server->getURLGenerator()->linkTo('driverlicensemgmt', 'js/script.js')); ?>"></script>
+<link rel="stylesheet" href="<?php p(\OC::$server->getURLGenerator()->linkTo('driverlicensemgmt', 'css/style.css')); ?>">
 
 <div id="app-content">
     <div id="app-content-wrapper">
