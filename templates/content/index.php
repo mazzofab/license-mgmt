@@ -47,12 +47,18 @@
                         </div>
                     </div>
 
-                    <div class="csv-import">
-                        <form id="csvUploadForm" enctype="multipart/form-data">
-                            <label for="csvFile"><?php p($l->t('Import Drivers from CSV:')); ?></label>
-                            <input type="file" id="csvFile" name="csvFile" accept=".csv" required />
-                            <button type="submit" class="button">Upload</button>
-                        </form>
+                    <div class="csv-import panel">
+                        <div class="panel-header">
+                            <h3><?php p($l->t('Import Drivers')); ?></h3>
+                        </div>
+                        <div class="panel-body">
+                            <p><?php p($l->t('Upload a CSV file to import multiple drivers at once. The CSV must include name, surname, license_number, and expiry_date columns.')); ?></p>
+                            <form id="csvUploadForm" enctype="multipart/form-data">
+                                <label for="csvFile"><?php p($l->t('Select CSV file:')); ?></label>
+                                <input type="file" id="csvFile" name="csvFile" accept=".csv" required />
+                                <button type="submit" class="button primary"><?php p($l->t('Upload')); ?></button>
+                            </form>
+                        </div>
                     </div>
 
                     <div class="information-section">
@@ -66,4 +72,5 @@
     </div>
 </div>
 
+<!-- Load JavaScript files -->
 <script src="<?php p(\OC::$server->getURLGenerator()->linkTo('driverlicensemgmt', 'js/importCSV.js')); ?>"></script>
