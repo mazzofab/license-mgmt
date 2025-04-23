@@ -7,18 +7,32 @@ use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Controller;
 use OCP\IRequest;
 use OCP\Files\Node;
-use OCP\ILogger;
+use Psr\Log\LoggerInterface;
+use OCP\IUserSession;
 
 use OCA\DriverLicenseMgmt\Service\LicenseService;
 
 class LicenseController extends Controller {
+    /** @var LicenseService */
     private $licenseService;
+    
+    /** @var LoggerInterface */
     private $logger;
+    
+    /** @var IUserSession */
+    private $userSession;
 
-    public function __construct($AppName, IRequest $request, LicenseService $licenseService, ILogger $logger) {
+    public function __construct(
+        $AppName, 
+        IRequest $request,
+        LicenseService $licenseService, 
+        LoggerInterface $logger,
+        IUserSession $userSession
+    ) {
         parent::__construct($AppName, $request);
         $this->licenseService = $licenseService;
         $this->logger = $logger;
+        $this->userSession = $userSession;
     }
 
     /**
@@ -28,9 +42,19 @@ class LicenseController extends Controller {
      */
     public function importCSV(): JSONResponse {
         try {
+            // Get current user
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new JSONResponse(
+                    ['success' => false, 'message' => 'User not authenticated'], 
+                    401
+                );
+            }
+            $userId = $user->getUID();
+            
             // Validate file upload
             $file = $this->request->getUploadedFile('csvFile');
-            if (!$file || !$file->isValid()) {
+            if (!$file || !isset($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
                 return new JSONResponse(
                     ['success' => false, 'message' => 'Invalid file upload. Please try again.'], 
                     400
@@ -38,8 +62,9 @@ class LicenseController extends Controller {
             }
 
             // Validate file type
-            $mimeType = $file->getType();
-            $extension = pathinfo($file->getName(), PATHINFO_EXTENSION);
+            $mimeType = $file['type'];
+            $fileName = $file['name'];
+            $extension = pathinfo($fileName, PATHINFO_EXTENSION);
             
             if ($mimeType !== 'text/csv' && $mimeType !== 'application/vnd.ms-excel' && $extension !== 'csv') {
                 return new JSONResponse(
@@ -49,7 +74,7 @@ class LicenseController extends Controller {
             }
 
             // Validate file size (2MB max)
-            if ($file->getSize() > 2 * 1024 * 1024) {
+            if ($file['size'] > 2 * 1024 * 1024) {
                 return new JSONResponse(
                     ['success' => false, 'message' => 'File size exceeds the maximum limit of 2MB.'], 
                     400
@@ -57,7 +82,7 @@ class LicenseController extends Controller {
             }
 
             // Read CSV data
-            $csvData = file_get_contents($file->getRealPath());
+            $csvData = file_get_contents($file['tmp_name']);
             if (empty($csvData)) {
                 return new JSONResponse(
                     ['success' => false, 'message' => 'The CSV file is empty.'], 
@@ -95,7 +120,7 @@ class LicenseController extends Controller {
 
             foreach ($rows as $index => $row) {
                 // Skip empty rows
-                if (empty(implode('', $row))) {
+                if (empty($row) || (count($row) === 1 && empty($row[0]))) {
                     continue;
                 }
 
@@ -112,19 +137,19 @@ class LicenseController extends Controller {
                     continue;
                 }
 
+                // Map CSV field names to class field names
+                $licenseNumber = $data['license_number'] ?? '';
+                $expiryDate = $data['expiry_date'] ?? '';
+                $phoneNumber = $data['phone'] ?? $data['phone_number'] ?? '';
+                
                 // Validate required fields
-                $hasEmptyRequired = false;
-                foreach ($requiredFields as $field) {
-                    if (empty($data[$field])) {
-                        $errors[] = "Row " . ($index + 2) . " is missing required value for '{$field}'.";
-                        $hasEmptyRequired = true;
-                        break;
-                    }
+                if (empty($data['name']) || empty($data['surname']) || empty($licenseNumber) || empty($expiryDate)) {
+                    $errors[] = "Row " . ($index + 2) . " is missing required values.";
+                    continue;
                 }
-                if ($hasEmptyRequired) continue;
 
                 // Validate date format
-                if (!$this->validateDate($data['expiry_date'])) {
+                if (!$this->validateDate($expiryDate)) {
                     $errors[] = "Row " . ($index + 2) . " has an invalid date format for 'expiry_date'. Use YYYY-MM-DD format.";
                     continue;
                 }
@@ -132,11 +157,12 @@ class LicenseController extends Controller {
                 // Import driver
                 try {
                     $this->licenseService->addLicense(
+                        $userId,
                         $data['name'],
                         $data['surname'],
-                        $data['license_number'],
-                        $data['expiry_date'],
-                        $data['phone'] ?? ''
+                        $licenseNumber,
+                        $expiryDate,
+                        $phoneNumber
                     );
                     $imported++;
                 } catch (\Exception $e) {
@@ -172,7 +198,7 @@ class LicenseController extends Controller {
             
         } catch (\Exception $e) {
             $this->logger->error('CSV import exception: ' . $e->getMessage(), 
-                ['app' => 'driverlicensemgmt', 'trace' => $e->getTraceAsString()]);
+                ['app' => 'driverlicensemgmt']);
                 
             return new JSONResponse([
                 'success' => false,

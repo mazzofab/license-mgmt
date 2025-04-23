@@ -1,4 +1,5 @@
 <?php
+
 namespace OCA\DriverLicenseMgmt\Service;
 
 use OCP\IDBConnection;
@@ -34,22 +35,21 @@ class LicenseService {
     /**
      * Add a new driver license
      *
-     * @param string $userId User ID
      * @param string $name
      * @param string $surname
      * @param string $licenseNumber
      * @param string $expiryDate
-     * @param string $phoneNumber
+     * @param string $phone
      * @return Driver
      */
-    public function addLicense(string $userId, string $name, string $surname, string $licenseNumber, string $expiryDate, string $phoneNumber = ''): Driver {
+    public function addLicense(string $name, string $surname, string $licenseNumber, string $expiryDate, string $phone = ''): Driver {
         $driver = new Driver();
         $driver->setName($name);
         $driver->setSurname($surname);
         $driver->setLicenseNumber($licenseNumber);
         $driver->setExpiryDate($expiryDate);
-        $driver->setPhoneNumber($phoneNumber);
-        $driver->setUserId($userId);
+        $driver->setPhoneNumber($phone); // Assuming your Driver entity uses phoneNumber, not phone
+        $driver->setUserId(\OC::$server->getUserSession()->getUser()->getUID()); // Get current user ID
         $driver->setCreatedAt(new \DateTime());
         $driver->setUpdatedAt(new \DateTime());
         
@@ -60,44 +60,46 @@ class LicenseService {
      * Update an existing driver license
      *
      * @param int $id
-     * @param string $userId User ID
      * @param string $name
      * @param string $surname
      * @param string $licenseNumber
      * @param string $expiryDate
-     * @param string $phoneNumber
+     * @param string $phone
+     * @param bool $active
      * @return Driver
      * @throws DoesNotExistException
+     * @throws MultipleObjectsReturnedException
      */
-    public function updateLicense(int $id, string $userId, string $name, string $surname, string $licenseNumber, string $expiryDate, string $phoneNumber = ''): Driver {
+    public function updateLicense(int $id, string $name, string $surname, string $licenseNumber, string $expiryDate, string $phone = ''): Driver {
         try {
+            $userId = \OC::$server->getUserSession()->getUser()->getUID();
             $driver = $this->driverMapper->find($id, $userId);
             $driver->setName($name);
             $driver->setSurname($surname);
             $driver->setLicenseNumber($licenseNumber);
             $driver->setExpiryDate($expiryDate);
-            $driver->setPhoneNumber($phoneNumber);
+            $driver->setPhoneNumber($phone);
             $driver->setUpdatedAt(new \DateTime());
             
             return $this->driverMapper->update($driver);
         } catch (DoesNotExistException $e) {
-            $this->logger->error('Could not update driver with id ' . $id . ': ' . $e->getMessage());
+            $this->logger->error('Could not update driver with id ' . $id . ': ' . $e->getMessage(), ['app' => 'driverlicensemgmt']);
             throw $e;
         } catch (MultipleObjectsReturnedException $e) {
-            $this->logger->error('Multiple drivers found with id ' . $id . ': ' . $e->getMessage());
+            $this->logger->error('Multiple drivers found with id ' . $id . ': ' . $e->getMessage(), ['app' => 'driverlicensemgmt']);
             throw $e;
         }
     }
 
     /**
-     * Get all drivers for a user
+     * Get all drivers
      *
-     * @param string $userId User ID
      * @param int $limit
      * @param int $offset
      * @return array
      */
-    public function getAllLicenses(string $userId, int $limit = 50, int $offset = 0): array {
+    public function getAllLicenses(int $limit = 50, int $offset = 0): array {
+        $userId = \OC::$server->getUserSession()->getUser()->getUID();
         return $this->driverMapper->findAll($userId, $limit, $offset);
     }
 
@@ -105,18 +107,19 @@ class LicenseService {
      * Get a driver by ID
      *
      * @param int $id
-     * @param string $userId User ID
      * @return Driver
      * @throws DoesNotExistException
+     * @throws MultipleObjectsReturnedException
      */
-    public function getLicense(int $id, string $userId): Driver {
+    public function getLicense(int $id): Driver {
         try {
+            $userId = \OC::$server->getUserSession()->getUser()->getUID();
             return $this->driverMapper->find($id, $userId);
         } catch (DoesNotExistException $e) {
-            $this->logger->error('Could not find driver with id ' . $id . ': ' . $e->getMessage());
+            $this->logger->error('Could not find driver with id ' . $id . ': ' . $e->getMessage(), ['app' => 'driverlicensemgmt']);
             throw $e;
         } catch (MultipleObjectsReturnedException $e) {
-            $this->logger->error('Multiple drivers found with id ' . $id . ': ' . $e->getMessage());
+            $this->logger->error('Multiple drivers found with id ' . $id . ': ' . $e->getMessage(), ['app' => 'driverlicensemgmt']);
             throw $e;
         }
     }
@@ -125,19 +128,20 @@ class LicenseService {
      * Delete a driver by ID
      *
      * @param int $id
-     * @param string $userId User ID
      * @return Driver
      * @throws DoesNotExistException
+     * @throws MultipleObjectsReturnedException
      */
-    public function deleteLicense(int $id, string $userId): Driver {
+    public function deleteLicense(int $id): Driver {
         try {
+            $userId = \OC::$server->getUserSession()->getUser()->getUID();
             $driver = $this->driverMapper->find($id, $userId);
             return $this->driverMapper->delete($driver);
         } catch (DoesNotExistException $e) {
-            $this->logger->error('Could not delete driver with id ' . $id . ': ' . $e->getMessage());
+            $this->logger->error('Could not delete driver with id ' . $id . ': ' . $e->getMessage(), ['app' => 'driverlicensemgmt']);
             throw $e;
         } catch (MultipleObjectsReturnedException $e) {
-            $this->logger->error('Multiple drivers found with id ' . $id . ': ' . $e->getMessage());
+            $this->logger->error('Multiple drivers found with id ' . $id . ': ' . $e->getMessage(), ['app' => 'driverlicensemgmt']);
             throw $e;
         }
     }
@@ -145,13 +149,13 @@ class LicenseService {
     /**
      * Search for drivers
      *
-     * @param string $userId User ID
      * @param string $query
      * @param int $limit
      * @param int $offset
      * @return array
      */
-    public function searchLicenses(string $userId, string $query, int $limit = 50, int $offset = 0): array {
+    public function searchLicenses(string $query, int $limit = 50, int $offset = 0): array {
+        $userId = \OC::$server->getUserSession()->getUser()->getUID();
         return $this->driverMapper->search($userId, $query, $limit, $offset);
     }
 
