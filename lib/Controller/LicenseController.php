@@ -1,6 +1,6 @@
 <?php
 
-namespace OCA\DrivingLicenseReminder\Controller;
+namespace OCA\DriverLicenseMgmt\Controller;
 
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\DataResponse;
@@ -8,7 +8,7 @@ use OCP\AppFramework\Controller;
 use OCP\IRequest;
 use OCP\Files\Node;
 
-use OCA\DrivingLicenseReminder\Service\LicenseService;
+use OCA\DriverLicenseMgmt\Service\LicenseService;
 
 class LicenseController extends Controller {
     private $licenseService;
