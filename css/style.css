@@ -353,3 +353,27 @@
         gap: 10px;
     }
 }
+
+/* CSV Upload */
+.csv-import {
+    background-color: var(--color-main-background);
+    border-radius: 5px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    margin-bottom: 30px;
+}
+
+.csv-import label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.csv-import input[type="file"] {
+    margin-bottom: 10px;
+    display: block;
+}
+
+.csv-import button {
+    display: inline-block;
+}

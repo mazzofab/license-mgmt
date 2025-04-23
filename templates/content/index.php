@@ -10,7 +10,7 @@ style('driverlicensemgmt', 'style');
                 <div class="dashboard-header">
                     <h2><?php p($l->t('Driving License Management')); ?></h2>
                 </div>
-                
+
                 <div class="dashboard-content">
                     <div class="two-columns">
                         <div class="panel">
@@ -26,7 +26,7 @@ style('driverlicensemgmt', 'style');
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="panel">
                             <div class="panel-header">
                                 <h3><?php p($l->t('Notification Recipients')); ?></h3>
@@ -41,7 +41,15 @@ style('driverlicensemgmt', 'style');
                             </div>
                         </div>
                     </div>
-                    
+
+                    <div class="csv-import">
+                        <form id="csvUploadForm" enctype="multipart/form-data">
+                            <label for="csvFile"><?php p($l->t('Import Drivers from CSV:')); ?></label>
+                            <input type="file" id="csvFile" name="csvFile" accept=".csv" required />
+                            <button type="submit" class="button">Upload</button>
+                        </form>
+                    </div>
+
                     <div class="information-section">
                         <h3><?php p($l->t('About this App')); ?></h3>
                         <p><?php p($l->t('The Driver License Management app helps you track driver licenses and send automatic reminders when licenses are about to expire.')); ?></p>
@@ -52,3 +60,5 @@ style('driverlicensemgmt', 'style');
         </div>
     </div>
 </div>
+
+<script src="<?php print_unescaped(OC_Helper::linkTo('driverlicensemgmt', 'js/importCSV.js')); ?>"></script>
