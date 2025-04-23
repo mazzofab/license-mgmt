@@ -92,6 +92,10 @@ class LicenseController extends Controller {
 
             // Parse CSV
             $rows = array_map('str_getcsv', explode("\n", trim($csvData)));
+            
+            // Debug log the parsed CSV data
+            $this->logger->debug('CSV parsed data: ' . json_encode($rows), ['app' => 'driverlicensemgmt']);
+            
             if (count($rows) < 2) { // At least header + 1 data row
                 return new JSONResponse(
                     ['success' => false, 'message' => 'The CSV file must contain at least one data row.'], 
@@ -99,12 +103,39 @@ class LicenseController extends Controller {
                 );
             }
 
-            $this->logger->debug('CSV parsed data: ' . json_encode($rows), ['app' => 'driverlicensemgmt']);
-
             // Get and validate header
             $header = array_map('trim', array_shift($rows));
-            $requiredFields = ['name', 'surname', 'license_number', 'expiry_date'];
-            $missingFields = array_diff($requiredFields, $header);
+            $this->logger->debug('CSV headers: ' . json_encode($header), ['app' => 'driverlicensemgmt']);
+            
+            // Map expected headers to possible variations
+            $headerMap = [
+                'name' => ['name', 'first_name', 'firstname'],
+                'surname' => ['surname', 'last_name', 'lastname'],
+                'license_number' => ['license_number', 'licensenumber', 'license', 'license_no', 'license_id'],
+                'expiry_date' => ['expiry_date', 'expirydate', 'expiry', 'expire_date', 'expires'],
+                'phone' => ['phone', 'phone_number', 'phonenumber', 'telephone', 'tel', 'mobile']
+            ];
+            
+            // Create an index mapping for each field
+            $fieldIndexes = [];
+            foreach ($headerMap as $field => $possibleNames) {
+                $fieldIndexes[$field] = -1;
+                foreach ($possibleNames as $possibleName) {
+                    $index = array_search(strtolower($possibleName), array_map('strtolower', $header));
+                    if ($index !== false) {
+                        $fieldIndexes[$field] = $index;
+                        break;
+                    }
+                }
+            }
+            
+            // Check if all required fields were found
+            $missingFields = [];
+            foreach (['name', 'surname', 'license_number', 'expiry_date'] as $requiredField) {
+                if ($fieldIndexes[$requiredField] === -1) {
+                    $missingFields[] = $requiredField;
+                }
+            }
             
             if (!empty($missingFields)) {
                 return new JSONResponse(
@@ -127,25 +158,20 @@ class LicenseController extends Controller {
                 }
 
                 // Validate row length
-                if (count($row) !== count($header)) {
+                if (count($row) < max(array_values($fieldIndexes)) + 1) {
                     $errors[] = "Row " . ($index + 2) . " has an invalid number of columns.";
                     continue;
                 }
 
-                // Combine header with data
-                $data = array_combine($header, array_map('trim', $row));
-                if (!$data) {
-                    $errors[] = "Could not process row " . ($index + 2) . ".";
-                    continue;
-                }
-
-                // Map CSV field names to class field names
-                $licenseNumber = $data['license_number'] ?? '';
-                $expiryDate = $data['expiry_date'] ?? '';
-                $phoneNumber = $data['phone'] ?? $data['phone_number'] ?? '';
+                // Get data from the row using the field indexes
+                $name = $row[$fieldIndexes['name']] ?? '';
+                $surname = $row[$fieldIndexes['surname']] ?? '';
+                $licenseNumber = $row[$fieldIndexes['license_number']] ?? '';
+                $expiryDate = $row[$fieldIndexes['expiry_date']] ?? '';
+                $phone = $fieldIndexes['phone'] !== -1 ? ($row[$fieldIndexes['phone']] ?? '') : '';
                 
                 // Validate required fields
-                if (empty($data['name']) || empty($data['surname']) || empty($licenseNumber) || empty($expiryDate)) {
+                if (empty($name) || empty($surname) || empty($licenseNumber) || empty($expiryDate)) {
                     $errors[] = "Row " . ($index + 2) . " is missing required values.";
                     continue;
                 }
@@ -156,15 +182,24 @@ class LicenseController extends Controller {
                     continue;
                 }
 
+                // Log the data we're about to import
+                $this->logger->debug('Importing driver: ' . json_encode([
+                    'name' => $name,
+                    'surname' => $surname,
+                    'licenseNumber' => $licenseNumber,
+                    'expiryDate' => $expiryDate,
+                    'phone' => $phone
+                ]), ['app' => 'driverlicensemgmt']);
+
                 // Import driver
                 try {
                     $this->licenseService->addLicense(
                         $userId,
-                        $data['name'],
-                        $data['surname'],
+                        $name,
+                        $surname,
                         $licenseNumber,
                         $expiryDate,
-                        $phoneNumber
+                        $phone
                     );
                     $imported++;
                 } catch (\Exception $e) {
