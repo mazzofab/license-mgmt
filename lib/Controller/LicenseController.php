@@ -99,6 +99,8 @@ class LicenseController extends Controller {
                 );
             }
 
+            $this->logger->debug('CSV parsed data: ' . json_encode($rows), ['app' => 'driverlicensemgmt']);
+
             // Get and validate header
             $header = array_map('trim', array_shift($rows));
             $requiredFields = ['name', 'surname', 'license_number', 'expiry_date'];
