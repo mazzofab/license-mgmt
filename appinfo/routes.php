@@ -27,6 +27,9 @@ return [
         
         // Import routes
         ['name' => 'import#import', 'url' => '/api/import/drivers', 'verb' => 'POST'],
+
+        // CSV Import
+        ['name' => 'license#importCSV','url' => '/import-csv','verb' => 'POST'],
         
         // Test routes (for development/testing only)
         ['name' => 'test#sendNotification', 'url' => '/api/test/notification/{driverId}/{days}', 'verb' => 'GET'],
