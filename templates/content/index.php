@@ -8,7 +8,7 @@ style('driverlicensemgmt', 'style');
         <div class="app-content-detail">
             <div class="dashboard">
                 <div class="dashboard-header">
-                    <h2><?php p($l->t('Driver License Management')); ?></h2>
+                    <h2><?php p($l->t('Driving License Management')); ?></h2>
                 </div>
                 
                 <div class="dashboard-content">
