@@ -1,9 +1,7 @@
 <?php
-// Use the script() and style() helper methods from the template class instead of direct links
-// These methods properly handle CSP nonces and other security requirements
+// No need to include script and style tags here as they're already registered
+// in the Application.php file using Util::addScript and Util::addStyle
 ?>
-<?php script('driverlicensemgmt', 'script'); ?>
-<?php style('driverlicensemgmt', 'style'); ?>
 
 <div id="app-content">
     <div id="app-content-wrapper">
@@ -68,6 +66,3 @@
         </div>
     </div>
 </div>
-
-<!-- Load importCSV.js script using the proper helper method -->
-<?php script('driverlicensemgmt', 'importCSV'); ?>

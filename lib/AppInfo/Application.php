@@ -9,6 +9,7 @@ use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\BackgroundJob\IJobList;
 use OCP\Notification\IManager;
+use OCP\Util;
 
 class Application extends App implements IBootstrap {
     public const APP_ID = 'driverlicensemgmt';
@@ -32,5 +33,12 @@ class Application extends App implements IBootstrap {
         // Register the notifier with the notification manager
         $notificationManager = $context->getServerContainer()->get(IManager::class);
         $notificationManager->registerNotifierService(NotificationProvider::class);
+        
+        // Register JavaScript files to ensure they have proper CSP nonces
+        Util::addScript(self::APP_ID, 'script');
+        Util::addScript(self::APP_ID, 'importCSV');
+        
+        // Register CSS files
+        Util::addStyle(self::APP_ID, 'style');
     }
 }
