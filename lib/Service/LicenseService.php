@@ -33,48 +33,71 @@ class LicenseService {
     }
 
     /**
-     * Add a new driver license
-     *
-     * @param string $name
-     * @param string $surname
-     * @param string $licenseNumber
-     * @param string $expiryDate
-     * @param string $phone
-     * @return Driver
-     */
-    public function addLicense(string $name, string $surname, string $licenseNumber, string $expiryDate, string $phone = ''): Driver {
-        try {
-            $driver = new Driver();
-            $driver->setName($name);
-            $driver->setSurname($surname);
-            $driver->setLicenseNumber($licenseNumber);
-            
-            // Properly parse the expiry date
-            if ($this->validateDate($expiryDate)) {
-                $date = \DateTime::createFromFormat('Y-m-d', $expiryDate);
-                if ($date) {
-                    $driver->setExpiryDate($date->format('Y-m-d'));
-                } else {
-                    throw new \Exception("Invalid date format: " . $expiryDate);
-                }
+ * Add a new driver license
+ *
+ * @param string $userId
+ * @param string $name
+ * @param string $surname
+ * @param string $licenseNumber
+ * @param string $expiryDate
+ * @param string $phone
+ * @return Driver
+ */
+public function addLicense(string $userId, string $name, string $surname, string $licenseNumber, string $expiryDate, string $phone = ''): Driver {
+    try {
+        $driver = new Driver();
+        $driver->setName($name);
+        $driver->setSurname($surname);
+        $driver->setLicenseNumber($licenseNumber);
+        
+        // Properly parse the expiry date
+        if ($this->validateDate($expiryDate)) {
+            $date = \DateTime::createFromFormat('Y-m-d', $expiryDate);
+            if ($date) {
+                $driver->setExpiryDate($date->format('Y-m-d'));
             } else {
                 throw new \Exception("Invalid date format: " . $expiryDate);
             }
+        } else {
+            // Try to parse other date formats
+            $dateFormats = [
+                'd/m/Y', // 31/12/2023
+                'm/d/Y', // 12/31/2023
+                'd-m-Y', // 31-12-2023
+                'm-d-Y', // 12-31-2023
+                'd.m.Y', // 31.12.2023
+                'Y.m.d'  // 2023.12.31
+            ];
             
-            $driver->setPhoneNumber($phone); // Assuming your Driver entity uses phoneNumber
-            $driver->setUserId(\OC::$server->getUserSession()->getUser()->getUID());
+            $validDate = false;
+            foreach ($dateFormats as $format) {
+                $date = \DateTime::createFromFormat($format, $expiryDate);
+                if ($date) {
+                    $driver->setExpiryDate($date->format('Y-m-d'));
+                    $validDate = true;
+                    break;
+                }
+            }
             
-            // Handle date objects correctly
-            $now = new \DateTime();
-            $driver->setCreatedAt($now->format('Y-m-d H:i:s'));
-            $driver->setUpdatedAt($now->format('Y-m-d H:i:s'));
-            
-            return $this->driverMapper->insert($driver);
-        } catch (\Exception $e) {
-            $this->logger->error('Error adding license: ' . $e->getMessage(), ['app' => 'driverlicensemgmt']);
-            throw $e;
+            if (!$validDate) {
+                throw new \Exception("Invalid date format: " . $expiryDate);
+            }
         }
+        
+        $driver->setPhoneNumber($phone); // Assuming your Driver entity uses phoneNumber
+        $driver->setUserId($userId);
+        
+        // Handle date objects correctly
+        $now = new \DateTime();
+        $driver->setCreatedAt($now->format('Y-m-d H:i:s'));
+        $driver->setUpdatedAt($now->format('Y-m-d H:i:s'));
+        
+        return $this->driverMapper->insert($driver);
+    } catch (\Exception $e) {
+        $this->logger->error('Error adding license: ' . $e->getMessage(), ['app' => 'driverlicensemgmt']);
+        throw $e;
     }
+}
 
     /**
      * Validate date format (YYYY-MM-DD)
