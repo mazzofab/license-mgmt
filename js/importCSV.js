@@ -23,9 +23,6 @@
                             <tbody></tbody>
                         </table>
                     </div>
-                    <div class="preview-validation">
-                        <div class="preview-validation-message" style="margin-bottom: 10px; display: none;"></div>
-                    </div>
                     <div class="preview-actions">
                         <button type="button" class="button primary" id="confirmImport">Confirm Import</button>
                         <button type="button" class="button" id="cancelImport">Cancel</button>
@@ -39,7 +36,6 @@
 
         const previewPanel = document.querySelector('.csv-preview');
         const previewTable = document.querySelector('.csv-preview-table');
-        const validationMsg = document.querySelector('.preview-validation-message');
         const confirmBtn = document.getElementById('confirmImport');
         const cancelBtn = document.getElementById('cancelImport');
         let csvData = null;
@@ -73,7 +69,6 @@
                         const content = e.target.result;
                         csvData = parseCSV(content);
                         displayPreview(csvData);
-                        validateCSVData(csvData);
                         showNotification('info', 'Please review the CSV data before importing.');
                     } catch (error) {
                         showNotification('error', 'Error parsing CSV: ' + error.message);
@@ -86,87 +81,8 @@
             });
         }
 
-        // Upload CSV function
-        function uploadCSV(file) {
-            // Show loading state
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
-            submitBtn.textContent = 'Uploading...';
-            submitBtn.disabled = true;
-            
-            const formData = new FormData();
-            formData.append('csvFile', file);
-
-            // Use the proper URL from OC.generateUrl
-            const url = OC.generateUrl('/apps/driverlicensemgmt/import-csv');
-            
-            fetch(url, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            })
-            .then(function(res) {
-                if (!res.ok) {
-                    throw new Error('Server responded with status: ' + res.status);
-                }
-                return res.json();
-            })
-            .then(function(data) {
-                if (data.success) {
-                    showNotification('success', data.message || "Import completed successfully.");
-                    
-                    // Reset the form and preview
-                    fileInput.value = '';
-                    previewPanel.style.display = 'none';
-                    validationMsg.style.display = 'none';
-                    csvData = null;
-                    
-                    // Reload after a short delay to show the notification
-                    setTimeout(function() { 
-                        window.location.reload(); 
-                    }, 2000);
-                } else {
-                    showNotification('error', data.message || "Import failed.");
-                }
-            })
-            .catch(function(err) {
-                console.error(err);
-                showNotification('error', "Upload failed: " + err.message);
-            })
-            .finally(function() {
-                // Reset button state
-                submitBtn.textContent = originalText;
-                submitBtn.disabled = false;
-            });
-        }
-
-        // Use Nextcloud's notification system instead of alerts
-        function showNotification(type, message) {
-            if (type === 'success') {
-                OC.Notification.showTemporary(message);
-            } else if (type === 'error') {
-                OC.Notification.showTemporary(message);
-            } else {
-                OC.Notification.showTemporary(message);
-            }
-        }
-
         // Parse CSV string into an array of objects
         function parseCSV(text) {
-            // Try to detect the delimiter
-            let delimiter = ',';
-            if (text.indexOf(';') !== -1) {
-                // If semicolons are present, check if they're more common than commas
-                const commaCount = (text.match(/,/g) || []).length;
-                const semicolonCount = (text.match(/;/g) || []).length;
-                
-                if (semicolonCount > commaCount) {
-                    delimiter = ';';
-                }
-            }
-            
             const lines = text.split(/\r\n|\n/);
             const result = [];
             
@@ -177,32 +93,11 @@
             }
             
             // Parse headers
-            const headers = parseCSVLine(filteredLines[0], delimiter);
-            
-            // Map headers to standard names
-            const headerMap = {
-                name: ['name', 'first name', 'firstname', 'first_name'],
-                surname: ['surname', 'last name', 'lastname', 'last_name'],
-                license_number: ['license number', 'license_number', 'licensenumber', 'license', 'license no', 'license_no', 'license id', 'license_id'],
-                expiry_date: ['expiry date', 'expiry_date', 'expirydate', 'expiry', 'expire date', 'expire_date', 'expires', 'expiration date', 'expiration_date']
-            };
-            
-            // Normalize headers
-            const normalizedHeaders = headers.map(header => {
-                const headerLower = header.toLowerCase().trim();
-                
-                for (const [standardName, variations] of Object.entries(headerMap)) {
-                    if (variations.includes(headerLower)) {
-                        return standardName;
-                    }
-                }
-                
-                return header; // Keep original if no match
-            });
+            const headers = parseCSVLine(filteredLines[0]);
             
             // Validate required headers
             const requiredHeaders = ['name', 'surname', 'license_number', 'expiry_date'];
-            const missingHeaders = requiredHeaders.filter(header => !normalizedHeaders.includes(header));
+            const missingHeaders = requiredHeaders.filter(header => !headers.includes(header));
             
             if (missingHeaders.length > 0) {
                 throw new Error('Missing required columns: ' + missingHeaders.join(', '));
@@ -210,24 +105,23 @@
             
             // Parse data rows
             for (let i = 1; i < filteredLines.length; i++) {
-                const values = parseCSVLine(filteredLines[i], delimiter);
-                if (values.length !== normalizedHeaders.length) {
-                    // Skip rows that don't match header count
-                    continue;
+                const values = parseCSVLine(filteredLines[i]);
+                if (values.length !== headers.length) {
+                    continue; // Skip malformed rows
                 }
                 
                 const row = {};
-                normalizedHeaders.forEach((header, index) => {
+                headers.forEach((header, index) => {
                     row[header] = values[index];
                 });
                 result.push(row);
             }
             
-            return { headers: normalizedHeaders, rows: result, originalHeaders: headers };
+            return { headers, rows: result };
         }
         
         // Parse a single CSV line, handling quoted values
-        function parseCSVLine(line, delimiter = ',') {
+        function parseCSVLine(line) {
             const result = [];
             let currentValue = '';
             let inQuotes = false;
@@ -238,7 +132,7 @@
                 if (char === '"') {
                     // Toggle quote mode
                     inQuotes = !inQuotes;
-                } else if (char === delimiter && !inQuotes) {
+                } else if (char === ',' && !inQuotes) {
                     // End of current value
                     result.push(currentValue.trim());
                     currentValue = '';
@@ -252,60 +146,6 @@
             result.push(currentValue.trim());
             
             return result;
-        }
-
-        // Validate CSV data and show warnings
-        function validateCSVData(data) {
-            const warnings = [];
-            
-            // Check if we have all required columns
-            const requiredColumns = ['name', 'surname', 'license_number', 'expiry_date'];
-            const missingColumns = [];
-            
-            requiredColumns.forEach(column => {
-                if (!data.headers.includes(column)) {
-                    missingColumns.push(column);
-                }
-            });
-            
-            if (missingColumns.length > 0) {
-                warnings.push(`Missing required columns: ${missingColumns.join(', ')}`);
-            }
-            
-            // Check for valid expiry dates
-            const dateRegex = /^\d{4}-\d{2}-\d{2}$/; // YYYY-MM-DD format
-            const altDateRegex1 = /^\d{2}\/\d{2}\/\d{4}$/; // MM/DD/YYYY or DD/MM/YYYY format
-            const altDateRegex2 = /^\d{2}-\d{2}-\d{4}$/; // MM-DD-YYYY or DD-MM-YYYY format
-            
-            const expiryDateIndex = data.headers.indexOf('expiry_date');
-            if (expiryDateIndex !== -1) {
-                let validDateCount = 0;
-                
-                data.rows.forEach((row, index) => {
-                    const expiryDate = row.expiry_date;
-                    if (!dateRegex.test(expiryDate) && !altDateRegex1.test(expiryDate) && !altDateRegex2.test(expiryDate)) {
-                        // Don't add individual warnings to avoid flooding
-                        if (validDateCount === 0) {
-                            warnings.push(`Some expiry dates are not in a recognized format (YYYY-MM-DD, MM/DD/YYYY, or DD/MM/YYYY).`);
-                        }
-                    } else {
-                        validDateCount++;
-                    }
-                });
-                
-                if (validDateCount < data.rows.length && validDateCount > 0) {
-                    warnings.push(`${validDateCount} out of ${data.rows.length} dates are in a valid format.`);
-                }
-            }
-            
-            // Display warnings if any
-            if (warnings.length > 0) {
-                validationMsg.style.display = 'block';
-                validationMsg.style.color = '#e67e22'; // Warning color
-                validationMsg.innerHTML = '<strong>Warning:</strong> ' + warnings.join('<br>');
-            } else {
-                validationMsg.style.display = 'none';
-            }
         }
 
         // Display CSV preview in table
@@ -335,19 +175,6 @@
                 data.headers.forEach(header => {
                     const td = document.createElement('td');
                     td.textContent = row[header] || '';
-                    
-                    // Highlight invalid date formats
-                    if (header === 'expiry_date') {
-                        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-                        const altDateRegex1 = /^\d{2}\/\d{2}\/\d{4}$/;
-                        const altDateRegex2 = /^\d{2}-\d{2}-\d{4}$/;
-                        
-                        if (!dateRegex.test(row[header]) && !altDateRegex1.test(row[header]) && !altDateRegex2.test(row[header])) {
-                            td.style.color = 'red';
-                            td.title = 'Invalid date format';
-                        }
-                    }
-                    
                     tr.appendChild(td);
                 });
                 
@@ -386,7 +213,6 @@
         if (cancelBtn) {
             cancelBtn.addEventListener('click', function() {
                 previewPanel.style.display = 'none';
-                validationMsg.style.display = 'none';
                 fileInput.value = '';
                 csvData = null;
             });
@@ -412,3 +238,71 @@
                 uploadCSV(fileInput.files[0]);
             });
         }
+
+        // Upload CSV function
+        function uploadCSV(file) {
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Uploading...';
+            submitBtn.disabled = true;
+            
+            const formData = new FormData();
+            formData.append('csvFile', file);
+
+            // Use the proper URL from OC.generateUrl
+            const url = OC.generateUrl('/apps/driverlicensemgmt/import-csv');
+            
+            fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'requesttoken': OC.requestToken
+                }
+            })
+            .then(function(res) {
+                if (!res.ok) {
+                    throw new Error('Server responded with status: ' + res.status);
+                }
+                return res.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    showNotification('success', data.message || "Import completed successfully.");
+                    
+                    // Reset the form and preview
+                    fileInput.value = '';
+                    previewPanel.style.display = 'none';
+                    csvData = null;
+                    
+                    // Reload after a short delay to show the notification
+                    setTimeout(function() { 
+                        window.location.reload(); 
+                    }, 2000);
+                } else {
+                    showNotification('error', data.message || "Import failed.");
+                }
+            })
+            .catch(function(err) {
+                console.error(err);
+                showNotification('error', "Upload failed: " + err.message);
+            })
+            .finally(function() {
+                // Reset button state
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            });
+        }
+
+        // Use Nextcloud's notification system instead of alerts
+        function showNotification(type, message) {
+            if (type === 'success') {
+                OC.Notification.showTemporary(message);
+            } else if (type === 'error') {
+                OC.Notification.showTemporary(message);
+            } else {
+                OC.Notification.showTemporary(message);
+            }
+        }
+    });
+})();

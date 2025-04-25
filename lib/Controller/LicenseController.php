@@ -323,4 +323,4 @@ class LicenseController extends Controller {
         }
         return false;
     }
-}Yes 
+}
